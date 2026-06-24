@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..packet import hex_bytes
-from .common import bit, u16be
+from .common import bit, signed_hex, u16be
 
 
 def ascii_field(data: bytes) -> str:
@@ -366,13 +366,22 @@ def decode_set_ac_timer(payload: bytes) -> dict[str, Any]:
 
 
 def decode_turbo_group(payload: bytes) -> dict[str, Any]:
+    records = []
     groups = []
-    for byte_index, byte in enumerate(payload):
-        for bit_index in range(8):
-            if bit(byte, 1 << bit_index):
-                groups.append((byte_index * 8) + bit_index)
+    for ac, value in enumerate(payload):
+        group = None if value == 0xFF else value
+        records.append({
+            "ac": ac,
+            "group": group,
+            "ui_zone": group + 1 if group is not None and group < 16 else None,
+            "raw": signed_hex(value),
+        })
+        if group is not None:
+            groups.append(group)
     return {
         "type": "turbo_group",
+        "record_count": len(records),
+        "records": records,
         "groups_zero_based": groups,
         "groups_one_based": [group + 1 for group in groups],
         "raw": hex_bytes(payload),

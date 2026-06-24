@@ -69,9 +69,15 @@ def decode_balance(payload: bytes) -> dict[str, Any]:
 
 
 def decode_balance_control(payload: bytes) -> dict[str, Any]:
-    decoded = decode_balance(payload)
-    decoded["type"] = "balance_control"
-    return decoded
+    return {
+        "type": "balance_control",
+        "set_values": list(payload[:16]),
+        "zones": [
+            {"zone": index, "set_value": value}
+            for index, value in enumerate(payload[:16])
+        ],
+        "trailing": hex_bytes(payload[16:]),
+    }
 
 
 def decode_set_grouping(payload: bytes) -> dict[str, Any]:

@@ -105,8 +105,7 @@ class AirTouchRuntime:
         current = time.monotonic() if now is None else now
         events: list[RuntimeEvent] = []
         packet, wire = self._session.build_touchpad_info_request()
-        self._write(wire)
-        events.append(RuntimeEvent("tx", packet=packet, wire=wire, decoded=decode_mainboard_payload(packet.command, packet.payload)))
+        events.append(self._tx_event(packet, wire))
 
         detect_until = current + self.config.detect_seconds
         while time.monotonic() < detect_until:
@@ -137,17 +136,15 @@ class AirTouchRuntime:
 
         if self._session.due_heartbeat(current):
             packet, wire = self._session.build_heartbeat()
-            self._write(wire)
+            events.append(self._tx_event(packet, wire))
             self._session.mark_heartbeat_sent(current)
-            events.append(RuntimeEvent("tx", packet=packet, wire=wire, decoded=decode_mainboard_payload(packet.command, packet.payload)))
 
         if self.transactions is not None:
             transaction_events, request = self.transactions.poll(current)
             events.extend(RuntimeEvent("transaction", transaction=event) for event in transaction_events)
             if request is not None:
                 packet, wire = self._session.build_packet(request.command, request.payload)
-                self._write(wire)
-                events.append(RuntimeEvent("tx", packet=packet, wire=wire, decoded=decode_mainboard_payload(packet.command, packet.payload)))
+                events.append(self._tx_event(packet, wire))
 
         return events
 
@@ -205,6 +202,12 @@ class AirTouchRuntime:
     def _write(self, wire: bytes) -> None:
         self.transport.write(wire)
         self.tx_count += 1
+
+    def _tx_event(self, packet: AirTouchPacket, wire: bytes) -> RuntimeEvent:
+        self._write(wire)
+        decoded = decode_mainboard_payload(packet.command, packet.payload)
+        self.state.apply_decoded(packet.command, decoded)
+        return RuntimeEvent("tx", packet=packet, wire=wire, decoded=decoded, state_changed=True)
 
     def _assign_address(self) -> int | None:
         if self.config.force_source_address and self.config.source_address is not None:

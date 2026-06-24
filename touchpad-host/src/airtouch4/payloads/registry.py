@@ -35,6 +35,7 @@ MAINBOARD_DECODERS: dict[int, Decoder] = {
     0x40: ui_config.decode_datetime,
     0x41: ui_config.decode_datetime,
     0x43: ui_config.decode_ac_runtime_status,
+    0x50: ui_config.decode_turbo_group,
     0x51: ui_config.decode_turbo_group,
     0x52: ui_config.decode_group_name,
     0x53: ui_config.decode_group_name,

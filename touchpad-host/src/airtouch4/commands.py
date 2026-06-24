@@ -366,6 +366,40 @@ def set_ac_timer_table(records: Sequence[Mapping[str, Any]], *, ac_count: int = 
     return bytes(payload)
 
 
+def set_turbo_group(
+    ac: int,
+    group: int,
+    current_groups: Sequence[int] | None = None,
+    *,
+    one_duct_system: bool = False,
+    ac_count: int | None = None,
+) -> bytes:
+    if one_duct_system:
+        return bytes((_turbo_group_byte(group),))
+    ac = _check_range("ac", ac, 0, 3)
+    count = max(ac + 1, len(current_groups or [])) if ac_count is None else _check_range("ac_count", ac_count, 1, 4)
+    ac = _check_range("ac", ac, 0, count - 1)
+    payload = bytearray(count)
+    for index in range(count):
+        value = group if index == ac else (current_groups[index] if current_groups and index < len(current_groups) else 0)
+        payload[index] = _turbo_group_byte(value)
+    return bytes(payload)
+
+
+def set_balance_values(
+    current_values: Sequence[int] | None = None,
+    *,
+    zone: int | None = None,
+    value: int = 0,
+) -> bytes:
+    payload = bytearray(16)
+    for index, current in enumerate((current_values or [])[:16]):
+        payload[index] = _check_range("balance_value", int(current), 0, 255)
+    if zone is not None:
+        payload[_check_range("zone", zone, 0, 15)] = _check_range("balance_value", value, 0, 255)
+    return bytes(payload)
+
+
 def set_program_define_new(
     records: Sequence[Mapping[str, Any]],
     *,
@@ -435,11 +469,11 @@ def clear_notification(notification: int = 0) -> bytes:
 
 
 def start_balance() -> bytes:
-    return b""
+    return set_balance_values()
 
 
 def stop_balance() -> bytes:
-    return b""
+    return set_balance_values()
 
 
 def raw_payload(payload: bytes | bytearray) -> bytes:
@@ -466,6 +500,12 @@ def _selector_visibility_byte(values: Mapping[str, Any]) -> int:
         | (0x10 if bool(values.get("average", False)) else 0)
         | (0x20 if bool(values.get("economy", False)) else 0)
     )
+
+
+def _turbo_group_byte(group: int) -> int:
+    if group < 0 or group > 16:
+        return 0xFF
+    return group
 
 
 def _program_record(program: int, record: Mapping[str, Any] | None) -> bytes:
@@ -545,6 +585,17 @@ def group_name_command(group: int, name: str) -> CommandSpec:
     return CommandSpec(0x52, set_group_name(group, name))
 
 
+def turbo_group_command(
+    ac: int,
+    group: int,
+    current_groups: Sequence[int] | None = None,
+    *,
+    one_duct_system: bool = False,
+    ac_count: int | None = None,
+) -> CommandSpec:
+    return CommandSpec(0x50, set_turbo_group(ac, group, current_groups, one_duct_system=one_duct_system, ac_count=ac_count))
+
+
 def preference_command(system_name: str) -> CommandSpec:
     return CommandSpec(0x54, set_preference(system_name))
 
@@ -583,6 +634,14 @@ def spill_command(ac_spill_types: list[int] | tuple[int, ...], spill_groups: lis
 
 def service_command(company: str, phone: str, **kwargs: bool | int | bytes) -> CommandSpec:
     return CommandSpec(0x6A, set_service(company, phone, **kwargs))
+
+
+def balance_start_command(current_values: Sequence[int] | None = None, *, zone: int | None = None, value: int = 0) -> CommandSpec:
+    return CommandSpec(0x62, set_balance_values(current_values, zone=zone, value=value))
+
+
+def balance_stop_command(current_values: Sequence[int] | None = None) -> CommandSpec:
+    return CommandSpec(0x64, set_balance_values(current_values))
 
 
 def password_info_command(page: int, payload: bytes) -> CommandSpec:

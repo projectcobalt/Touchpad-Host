@@ -33,31 +33,37 @@ class AirTouchState:
         kind = decoded.get("type")
         if kind in {"unknown", "decode_error"}:
             return
-        if kind == "parameters":
-            self.system.update(decoded)
+        if kind in {"parameters", "set_parameters"}:
+            self.system.update({key: value for key, value in decoded.items() if key not in {"type", "raw", "tail"}})
         elif kind == "preference":
             self.system.update({key: value for key, value in decoded.items() if key != "type"})
-        elif kind == "ac_base_info":
+        elif kind in {"ac_base_info", "set_ac_base_info"}:
             self.system["ac_count"] = decoded.get("ac_count")
             self.system["one_duct_system"] = decoded.get("one_duct_system")
             for record in decoded.get("records", []):
                 self._merge(self.acs, record.get("ac"), {"base": record})
-        elif kind == "ac_setting_new":
+        elif kind in {"ac_setting", "ac_setting_new", "set_ac_setting_new"}:
             for record in decoded.get("records", []):
                 self._merge(self.acs, record.get("ac"), {"settings": record})
+        elif kind == "set_ac_status_internal":
+            self._merge(self.acs, decoded.get("ac"), {"last_control": decoded})
         elif kind == "ac_status_internal":
             for record in decoded.get("records", []):
                 self._merge(self.acs, record.get("ac"), {"status": record})
-        elif kind in {"ac_runtime_status", "ac_timer"}:
+        elif kind in {"ac_runtime_status", "ac_timer", "set_ac_timer"}:
             field_name = "runtime" if kind == "ac_runtime_status" else "timer"
             for record in decoded.get("records", []):
                 self._merge(self.acs, record.get("ac"), {field_name: record})
         elif kind == "group_name":
             for record in decoded.get("records", []):
                 self._merge(self.groups, record.get("group"), {"name": record.get("name"), "name_record": record})
+        elif kind == "set_group_status_internal":
+            self._merge(self.groups, decoded.get("group"), {"last_control": decoded})
         elif kind == "group_status_internal":
             for record in decoded.get("records", []):
                 self._merge(self.groups, record.get("group"), {"status": record})
+        elif kind == "set_grouping":
+            self._merge(self.groups, decoded.get("group"), {"grouping": decoded})
         elif kind == "grouping":
             for record in decoded.get("records", []):
                 self._merge(self.groups, record.get("group"), {"grouping": record})
@@ -84,25 +90,37 @@ class AirTouchState:
                     "kind": "touchpad" if sensor in touchpads else "rf",
                     "sensor_name": SENSOR_SELECTORS.get(sensor, f"rf_sensor_{sensor}"),
                 })
+        elif kind == "pair_sensor":
+            self.system["sensor_pairing"] = decoded
+        elif kind == "set_sensor_temp":
+            self._merge_sensor(decoded.get("sensor"), {
+                "kind": "touchpad" if decoded.get("sensor") in (0x90, 0x91) else "rf",
+                "sensor_name": SENSOR_SELECTORS.get(decoded.get("sensor"), f"sensor_addr_{decoded.get('sensor')}"),
+                "temperature": decoded.get("temperature"),
+                "temperature_raw": decoded.get("temperature_raw"),
+                "last_temperature_write": decoded,
+            })
         elif kind == "sensor_info":
             for record in decoded.get("records", []):
                 self._merge_sensor_info(record)
-        elif kind == "favourite":
+        elif kind in {"favourite", "set_favourite"}:
             for record in decoded.get("records", []):
                 self._merge(self.favourites, record.get("favourite"), record)
+        elif kind == "set_active_favourite":
+            self.system["active_favourite"] = decoded.get("favourite")
         elif kind == "active_favourite":
             self.system["active_favourite"] = decoded.get("active_favourite")
             for record in decoded.get("names", []):
                 self._merge(self.favourites, record.get("favourite"), {"name": record.get("name"), "name_record": record})
-        elif kind == "program_define_new":
+        elif kind in {"program_define", "program_define_new", "set_program_define_new"}:
             self.system["program_count"] = decoded.get("program_count")
             self.system["programs_linked_ac"] = decoded.get("linked_ac")
             self.system["program_record_len"] = decoded.get("record_len")
             for record in decoded.get("records", []):
                 self._merge(self.programs, record.get("program"), record)
-        elif kind == "service":
+        elif kind in {"service", "set_service"}:
             self.service.update(decoded)
-        elif kind == "password_info":
+        elif kind in {"password_info", "set_password_info"}:
             page = decoded.get("page")
             if page is not None:
                 self.password[f"page_{page}"] = decoded

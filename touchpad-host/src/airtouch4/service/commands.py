@@ -56,6 +56,14 @@ def _build_command_spec(action: str, data: dict[str, Any]) -> commands.CommandSp
             return commands.ac_timer_table_command(_record_list(data, "records"), ac_count=_optional_int(data, "ac_count") or 4)
         if action == "group_name":
             return commands.group_name_command(_int(data, "group"), _str(data, "name"))
+        if action == "turbo_group":
+            return commands.turbo_group_command(
+                _int(data, "ac"),
+                _int(data, "group"),
+                _optional_int_list(data, "current_groups"),
+                one_duct_system=_optional_bool(data, "one_duct_system") or False,
+                ac_count=_optional_int(data, "ac_count"),
+            )
         if action == "preference":
             if _has_any(data, (
                 "show_ac_errors",
@@ -128,9 +136,13 @@ def _build_command_spec(action: str, data: dict[str, Any]) -> commands.CommandSp
         if action == "pair_sensor":
             return commands.pair_sensor_command(_bool(data, "pairing"))
         if action == "balance_start":
-            return commands.raw_command(0x74, commands.start_balance())
+            return commands.balance_start_command(
+                _optional_int_list(data, "current_values"),
+                zone=_optional_int(data, "zone"),
+                value=_optional_int(data, "value") or 0,
+            )
         if action == "balance_stop":
-            return commands.raw_command(0x75, commands.stop_balance())
+            return commands.balance_stop_command(_optional_int_list(data, "current_values"))
         if action == "sensor_temperature":
             return commands.sensor_temperature_command(_int(data, "sensor"), _int(data, "encoded_temperature"))
         if action == "raw":
@@ -204,6 +216,12 @@ def _int_list(data: dict[str, Any], key: str) -> list[int]:
     if not isinstance(value, list):
         raise CommandRequestError(f"{key} must be a list")
     return [int(item, 0) if isinstance(item, str) else int(item) for item in value]
+
+
+def _optional_int_list(data: dict[str, Any], key: str) -> list[int] | None:
+    if key not in data or data[key] is None:
+        return None
+    return _int_list(data, key)
 
 
 def _record_list(data: dict[str, Any], key: str) -> list[dict[str, Any]]:
