@@ -283,10 +283,14 @@ def decode_ac_base_info(payload: bytes) -> dict[str, Any]:
     records = []
     for offset in range(2, len(payload) - 11, 12):
         rec = payload[offset:offset + 12]
+        group_start = (rec[0] & 0x30) + (rec[1] & 0x0F)
+        group_count = ((rec[0] >> 2) & 0x30) + ((rec[1] >> 4) & 0x0F)
         records.append({
             "ac": rec[0] & 0x0F,
             "raw_group_pack_0": signed_hex(rec[0]),
             "raw_group_pack_1": signed_hex(rec[1]),
+            "group_start": group_start,
+            "group_count": group_count,
             "brand": u16be(rec, 2),
             "name": rec[4:12].rstrip(b"\x00 ").decode("ascii", errors="replace"),
             "raw": hex_bytes(rec),

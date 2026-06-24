@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.9
+
+- Rework the ingress UI into three app views: Control, Favourites & Programs,
+  and Service.
+- Make Control the daily-use surface with a dynamic AC selector and zone panels
+  filtered like the factory touchpad.
+- Move sensors, setup/system state, and diagnostics behind the Service view.
+- Decode AC group start/count from base info so multi-AC systems can map zones
+  to the selected AC.
+
 ## 0.1.8
 
 - Add startup config for an optional Home Assistant temperature sensor to feed
