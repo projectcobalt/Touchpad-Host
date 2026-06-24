@@ -46,8 +46,18 @@ def _build_command_spec(action: str, data: dict[str, Any]) -> commands.CommandSp
             )
         if action == "active_favourite":
             return commands.active_favourite_command(_int(data, "favourite"))
+        if action == "favourite":
+            return commands.favourite_command(_int(data, "favourite"), _str(data, "name"), _int_list(data, "groups"))
+        if action == "ac_timer":
+            hour = _optional_int(data, "hour")
+            minute = _optional_int(data, "minute")
+            return commands.ac_timer_command(_int(data, "ac"), hour=hour, minute=minute)
         if action == "group_name":
             return commands.group_name_command(_int(data, "group"), _str(data, "name"))
+        if action == "preference":
+            return commands.preference_command(_str(data, "system_name"))
+        if action == "service":
+            return commands.service_command(_str(data, "company"), _str(data, "phone"), _hex_bytes(data, "tail", default=b""))
         if action == "grouping":
             return commands.grouping_command(
                 _int(data, "group"),
@@ -60,6 +70,10 @@ def _build_command_spec(action: str, data: dict[str, Any]) -> commands.CommandSp
             return commands.spill_command(_int_list(data, "ac_spill_types"), _int_list(data, "spill_groups"))
         if action == "pair_sensor":
             return commands.pair_sensor_command(_bool(data, "pairing"))
+        if action == "balance_start":
+            return commands.raw_command(0x74, commands.start_balance())
+        if action == "balance_stop":
+            return commands.raw_command(0x75, commands.stop_balance())
         if action == "sensor_temperature":
             return commands.sensor_temperature_command(_int(data, "sensor"), _int(data, "encoded_temperature"))
         if action == "raw":

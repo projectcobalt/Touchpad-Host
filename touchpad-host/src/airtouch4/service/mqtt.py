@@ -7,6 +7,8 @@ import logging
 import os
 from dataclasses import dataclass
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 LOG = logging.getLogger("uvicorn.error")
 
@@ -57,7 +59,9 @@ class MqttStatePublisher:
         self._publish_count = 0
         self._json_publish_count = 0
         self._value_publish_count = 0
+        self._failed_publish_count = 0
         self._last_publish_summary: dict[str, Any] | None = None
+        self._transport = ""
 
     def status(self) -> dict[str, Any]:
         return {
@@ -70,7 +74,9 @@ class MqttStatePublisher:
             "discovery_count": len(self._published_discovery),
             "json_publish_count": self._json_publish_count,
             "value_publish_count": self._value_publish_count,
+            "failed_publish_count": self._failed_publish_count,
             "last_publish": self._last_publish_summary,
+            "transport": self._transport,
         }
 
     def publish(self, snapshot: dict[str, Any]) -> None:
@@ -95,6 +101,7 @@ class MqttStatePublisher:
             "active_groups": len(active_groups),
             "discovery_added": len(self._published_discovery) - discovery_before,
             "values_published": self._value_publish_count - values_before,
+            "failed_publishes": self._failed_publish_count,
         }
         self._last_publish_summary = summary
         log = LOG.info if summary["discovery_added"] or self._publish_count == 1 else LOG.debug
@@ -123,6 +130,12 @@ class MqttStatePublisher:
     def _ensure_connected(self) -> bool:
         if self._connected:
             return True
+        if os.environ.get("SUPERVISOR_TOKEN"):
+            self._connected = True
+            self._transport = "homeassistant_service"
+            self._error = None
+            LOG.info("MQTT publishing through Home Assistant mqtt.publish service")
+            return True
         try:
             import paho.mqtt.client as mqtt
         except ModuleNotFoundError as exc:
@@ -139,6 +152,7 @@ class MqttStatePublisher:
             client.loop_start()
             self._client = client
             self._connected = True
+            self._transport = "paho"
             self._error = None
             LOG.info("MQTT connected to %s:%s", self.config.broker_host, self.config.broker_port)
             return True
@@ -159,8 +173,8 @@ class MqttStatePublisher:
             base = ac.get("base") or {}
             name = base.get("name") or f"AC {int(ac_id) + 1}"
             object_id = f"airtouch4_ac_{int(ac_id) + 1}"
-            self._publish_sensor_discovery(device, f"{object_id}_current_temperature", f"{name} Current Temperature", f"{self.config.topic_prefix}/ac/{ac_id}/current_temperature", "temperature", "°C")
-            self._publish_sensor_discovery(device, f"{object_id}_target_temperature", f"{name} Target Temperature", f"{self.config.topic_prefix}/ac/{ac_id}/target_temperature", "temperature", "°C")
+            self._publish_sensor_discovery(device, f"{object_id}_current_temperature", f"{name} Current Temperature", f"{self.config.topic_prefix}/ac/{ac_id}/current_temperature", "temperature", "\u00b0C")
+            self._publish_sensor_discovery(device, f"{object_id}_target_temperature", f"{name} Target Temperature", f"{self.config.topic_prefix}/ac/{ac_id}/target_temperature", "temperature", "\u00b0C")
             self._publish_sensor_discovery(device, f"{object_id}_mode", f"{name} Mode", f"{self.config.topic_prefix}/ac/{ac_id}/mode")
             self._publish_sensor_discovery(device, f"{object_id}_fan_mode", f"{name} Fan", f"{self.config.topic_prefix}/ac/{ac_id}/fan_mode")
         for group_id, group in sorted((state.get("active_groups") or state.get("groups") or {}).items(), key=lambda item: int(item[0])):
@@ -168,8 +182,8 @@ class MqttStatePublisher:
             name = group.get("name") or f"Zone {int(group_id) + 1}"
             object_id = f"airtouch4_zone_{int(group_id) + 1}"
             if status.get("has_sensor"):
-                self._publish_sensor_discovery(device, f"{object_id}_current_temperature", f"{name} Current Temperature", f"{self.config.topic_prefix}/zone/{group_id}/current_temperature", "temperature", "°C")
-                self._publish_sensor_discovery(device, f"{object_id}_target_temperature", f"{name} Target Temperature", f"{self.config.topic_prefix}/zone/{group_id}/target_temperature", "temperature", "°C")
+                self._publish_sensor_discovery(device, f"{object_id}_current_temperature", f"{name} Current Temperature", f"{self.config.topic_prefix}/zone/{group_id}/current_temperature", "temperature", "\u00b0C")
+                self._publish_sensor_discovery(device, f"{object_id}_target_temperature", f"{name} Target Temperature", f"{self.config.topic_prefix}/zone/{group_id}/target_temperature", "temperature", "\u00b0C")
             self._publish_sensor_discovery(device, f"{object_id}_mode", f"{name} Mode", f"{self.config.topic_prefix}/zone/{group_id}/mode")
             self._publish_sensor_discovery(device, f"{object_id}_percentage", f"{name} Damper", f"{self.config.topic_prefix}/zone/{group_id}/percentage", None, "%")
 
@@ -226,15 +240,63 @@ class MqttStatePublisher:
         self._publish_value(f"{self.config.topic_prefix}/availability", value, retain=True)
 
     def _publish_json(self, topic: str, payload: dict[str, Any], *, retain: bool = False) -> None:
-        if self._client is not None:
-            self._client.publish(topic, json.dumps(payload, separators=(",", ":"), default=str), qos=0, retain=retain)
+        if self._publish_payload(topic, json.dumps(payload, separators=(",", ":"), default=str), retain=retain):
             self._json_publish_count += 1
 
     def _publish_value(self, topic: str, value: Any, *, retain: bool = False) -> None:
-        if value is None or self._client is None:
+        if value is None:
             return
-        self._client.publish(topic, str(value), qos=0, retain=retain)
-        self._value_publish_count += 1
+        if self._publish_payload(topic, str(value), retain=retain):
+            self._value_publish_count += 1
+
+    def _publish_payload(self, topic: str, payload: str, *, retain: bool = False) -> bool:
+        if self._transport == "homeassistant_service":
+            return self._publish_to_homeassistant(topic, payload, retain=retain)
+        if self._client is not None:
+            info = self._client.publish(topic, payload, qos=0, retain=retain)
+            if getattr(info, "rc", 0) == 0:
+                try:
+                    info.wait_for_publish(timeout=2.0)
+                except TypeError:
+                    info.wait_for_publish()
+                return True
+            self._failed_publish_count += 1
+            self._error = f"MQTT publish failed rc={getattr(info, 'rc', 'unknown')}"
+            return False
+        self._failed_publish_count += 1
+        self._error = "MQTT publish attempted before client was available"
+        return False
+
+    def _publish_to_homeassistant(self, topic: str, payload: str, *, retain: bool = False) -> bool:
+        token = os.environ.get("SUPERVISOR_TOKEN", "")
+        if not token:
+            self._failed_publish_count += 1
+            self._error = "SUPERVISOR_TOKEN is not available"
+            return False
+        body = json.dumps({
+            "topic": topic,
+            "payload": payload,
+            "qos": 0,
+            "retain": retain,
+        }).encode("utf-8")
+        request = Request(
+            "http://supervisor/core/api/services/mqtt/publish",
+            data=body,
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+        )
+        try:
+            with urlopen(request, timeout=3.0) as response:
+                response.read()
+            return True
+        except (HTTPError, URLError, TimeoutError) as exc:
+            self._failed_publish_count += 1
+            self._error = f"Home Assistant mqtt.publish failed: {exc}"
+            LOG.warning("%s", self._error)
+            return False
 
 
 def _env_first(*names: str) -> str:

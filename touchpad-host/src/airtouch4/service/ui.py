@@ -528,6 +528,55 @@ INDEX_HTML = """<!doctype html>
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 14px;
     }
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+    .field {
+      display: grid;
+      gap: 5px;
+    }
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      text-transform: uppercase;
+    }
+    input,
+    select {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: var(--panel-soft);
+      color: var(--text);
+      padding: 7px 8px;
+      font: inherit;
+    }
+    input[type="checkbox"] {
+      width: 18px;
+      min-height: 18px;
+      padding: 0;
+    }
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+    }
+    .service-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .service-card-body {
+      display: grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
     .diagnostics {
       grid-column: 1 / -1;
     }
@@ -660,8 +709,12 @@ INDEX_HTML = """<!doctype html>
       <div id="service-sensors" class="subview active">
         <section>
           <h2>Sensors</h2>
+          <div class="service-actions">
+            <button type="button" data-service-action="pair-sensor" data-pairing="true">Start Pair</button>
+            <button type="button" class="secondary" data-service-action="pair-sensor" data-pairing="false">Stop Pair</button>
+          </div>
           <table>
-            <thead><tr><th>Sensor</th><th>Name</th><th>Temp</th><th>Status</th></tr></thead>
+            <thead><tr><th>Sensor</th><th>Name</th><th>Temp</th><th>Signal</th><th>Status</th></tr></thead>
             <tbody id="sensors"></tbody>
           </table>
         </section>
@@ -696,13 +749,31 @@ INDEX_HTML = """<!doctype html>
       <div id="service-parameters" class="subview">
         <section>
           <h2>Parameters</h2>
-          <div class="json" id="parameters">{}</div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="system-name-input">System name</label>
+              <input id="system-name-input" maxlength="16" autocomplete="off">
+            </div>
+            <button type="button" data-service-action="preference">Save Name</button>
+          </div>
+          <div class="cards" id="parameters"></div>
         </section>
       </div>
       <div id="service-system" class="subview">
         <section>
           <h2>System Info</h2>
-          <div class="json" id="system">{}</div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="service-company-input">Service company</label>
+              <input id="service-company-input" maxlength="10" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="service-phone-input">Service phone</label>
+              <input id="service-phone-input" maxlength="12" autocomplete="off">
+            </div>
+            <button type="button" data-service-action="service-contact">Save Service</button>
+          </div>
+          <div class="cards" id="system"></div>
         </section>
       </div>
       <div id="service-diagnostics" class="subview">
@@ -879,6 +950,14 @@ INDEX_HTML = """<!doctype html>
         if (high & (1 << i)) names.push((groups[i + 8] && groups[i + 8].name) || `Zone ${i + 9}`);
       }
       return names;
+    }
+
+    function sensorName(value) {
+      const sensor = Number(value);
+      if (!Number.isFinite(sensor) || sensor === 255) return "None";
+      if (sensor === 144) return "Touchpad 1";
+      if (sensor === 145) return "Touchpad 2";
+      return `Sensor ${sensor}`;
     }
 
     function visibleAcs(state) {
@@ -1124,27 +1203,65 @@ INDEX_HTML = """<!doctype html>
     function renderServicePages(state) {
       const groups = state.groups || state.active_groups || {};
       const acs = visibleAcs(state);
+      const system = state.system || {};
       const balanceZones = ((state.system || {}).balance || {}).zones || [];
       $("grouping").innerHTML = Object.entries(groups)
         .sort(([a], [b]) => Number(a) - Number(b))
         .map(([id, group]) => {
           const grouping = group.grouping || {};
-          const zones = [grouping.zone_1, grouping.zone_2, grouping.zone_3, grouping.zone_4]
-            .filter((zone) => zone !== undefined && zone !== null && zone !== 0)
-            .join(", ");
-          return infoCard(group.name || `Zone ${Number(id) + 1}`, zones ? `Grouped zones: ${zones}` : "Default single-zone group");
+          const status = group.status || {};
+          const groupName = group.name || `Zone ${Number(id) + 1}`;
+          const zoneStart = grouping.zone_start ?? grouping.zone_1 ?? Number(id);
+          const zoneCount = grouping.zone_count ?? 1;
+          const minPercent = grouping.min_percent ?? status.min_percentage ?? 0;
+          const thermostat = grouping.thermostat ?? status.sensor ?? 255;
+          return `
+            <article class="card" data-service-group="${escapeHtml(id)}">
+              <div class="card-title">${escapeHtml(groupName)}</div>
+              <div class="muted">Mapped dampers ${escapeHtml(zoneStart)}-${escapeHtml(Number(zoneStart) + Number(zoneCount) - 1)} / sensor ${escapeHtml(sensorName(thermostat))}</div>
+              <div class="service-card-body">
+                <div class="field-grid">
+                  <div class="field"><label>Name</label><input data-field="group-name" maxlength="8" value="${escapeHtml(groupName)}"></div>
+                  <div class="field"><label>Start</label><input data-field="zone-start" type="number" min="0" max="63" value="${escapeHtml(zoneStart)}"></div>
+                  <div class="field"><label>Count</label><input data-field="zone-count" type="number" min="1" max="4" value="${escapeHtml(zoneCount)}"></div>
+                  <div class="field"><label>Min %</label><input data-field="min-percent" type="number" min="0" max="100" value="${escapeHtml(minPercent)}"></div>
+                  <div class="field"><label>Sensor</label><input data-field="thermostat" type="number" min="0" max="255" value="${escapeHtml(thermostat)}"></div>
+                </div>
+                <div class="service-actions">
+                  <button type="button" data-service-action="group-name" data-group="${escapeHtml(id)}">Save Name</button>
+                  <button type="button" class="secondary" data-service-action="grouping" data-group="${escapeHtml(id)}">Save Grouping</button>
+                </div>
+              </div>
+            </article>`;
         }).join("") || '<div class="muted">No grouping data</div>';
       $("spill").innerHTML = Object.entries(groups)
         .sort(([a], [b]) => Number(a) - Number(b))
         .map(([id, group]) => {
           const status = group.status || {};
           const configured = group.spill_configured || status.spill_on;
-          return infoCard(
-            group.name || `Zone ${Number(id) + 1}`,
-            configured ? "Configured as spill/storage path" : "Normal controlled zone",
-            `<div><span class="${configured ? "pill warn" : "pill"}">${configured ? "spill" : "normal"}</span></div>`
-          );
+          return `
+            <article class="card">
+              <div class="card-title">${escapeHtml(group.name || `Zone ${Number(id) + 1}`)}</div>
+              <div class="muted">${escapeHtml(configured ? "Configured as spill/storage path" : "Normal controlled zone")}</div>
+              <label class="check-row">
+                <input type="checkbox" data-spill-group="${escapeHtml(id)}" ${configured ? "checked" : ""}>
+                <span class="${configured ? "pill warn" : "pill"}">${configured ? "spill" : "normal"}</span>
+              </label>
+            </article>`;
         }).join("") || '<div class="muted">No spill data</div>';
+      $("spill").innerHTML += `
+        <article class="card">
+          <div class="card-title">AC Spill Mode</div>
+          <div class="field-grid">
+            ${[0, 1, 2, 3].map((ac) => {
+              const configured = (((system.spill || {}).ac_spill_types || [])[ac] || {}).value ?? 0;
+              return `<div class="field"><label>AC ${ac + 1}</label><select data-spill-ac="${ac}">
+                ${[[0, "None"], [1, "Spill"], [2, "Storage"], [3, "Reserve"]].map(([value, label]) => `<option value="${value}" ${configured === value ? "selected" : ""}>${label}</option>`).join("")}
+              </select></div>`;
+            }).join("")}
+          </div>
+          <div class="service-actions"><button type="button" data-service-action="spill">Save Spill</button></div>
+        </article>`;
       $("balance").innerHTML = balanceZones.length
         ? balanceZones.map((zone) => {
           const group = groups[zone.zone] || {};
@@ -1156,6 +1273,7 @@ INDEX_HTML = """<!doctype html>
           ]);
         }).join("")
         : row(["-", "No balance data", "-", "-"]);
+      $("balance").innerHTML += `<tr><td colspan="4"><div class="service-actions"><button type="button" data-service-action="balance-start">Start Balance</button><button type="button" class="secondary" data-service-action="balance-stop">Stop Balance</button></div></td></tr>`;
       $("ac-setup").innerHTML = acs.map(([id, ac]) => {
         const base = ac.base || {};
         const settings = ac.settings || {};
@@ -1164,12 +1282,26 @@ INDEX_HTML = """<!doctype html>
           `Groups ${text(base.group_start)}-${Number.isInteger(base.group_start) && Number.isInteger(base.group_count) ? base.group_start + base.group_count - 1 : "-"} / brand ${text(base.brand)} / hide spill ${settings.hide_spill_group ? "yes" : "no"}`
         );
       }).join("") || '<div class="muted">No AC setup data</div>';
-      $("parameters").textContent = JSON.stringify({
-        system: state.system,
-        acs: state.acs,
-        service: state.service,
-        password: state.password
-      }, null, 2);
+      if (document.activeElement !== $("system-name-input")) $("system-name-input").value = system.system_name || "";
+      const service = state.service || {};
+      if (document.activeElement !== $("service-company-input")) $("service-company-input").value = service.company || service.company_name || "";
+      if (document.activeElement !== $("service-phone-input")) $("service-phone-input").value = service.phone || service.phone_number || "";
+      $("parameters").innerHTML = [
+        metric("System", system.system_name || "-"),
+        metric("Groups", system.group_count ?? "-"),
+        metric("ACs", system.ac_count ?? "-"),
+        metric("Device ID", system.device_id || "-"),
+        metric("Firmware", system.firmware_version_raw || "-"),
+        metric("Sensors", (system.sensor_addresses || []).join(", ") || "-"),
+      ].join("");
+      $("system").innerHTML = [
+        metric("Service", [service.company, service.phone].filter(Boolean).join(" / ") || "-"),
+        metric("Password Pages", Object.keys(state.password || {}).length),
+        metric("Last LED", (state.last_led || {}).led ?? "-"),
+        metric("Supply Air", (system.supply_air || []).map((item) => item.status || item.temperature || "-").join(", ") || "-"),
+        metric("Touchpads", (((system.sensor_list || {}).touchpad_addresses) || []).map((item) => `0x${Number(item).toString(16).toUpperCase()}`).join(", ") || "-"),
+        metric("Runtime", (system.expanded || {}).software_version || "-"),
+      ].join("");
     }
 
     function renderState(payload, eventsPayload = {}) {
@@ -1232,24 +1364,13 @@ INDEX_HTML = """<!doctype html>
           id,
           sensor.sensor_name,
           temp(sensor.temperature),
+          sensor.signal !== undefined && sensor.signal !== null ? sensor.signal : "-",
           [
             sensor.kind,
             sensor.status || (sensor.present === false ? "missing" : sensor.listed ? "listed" : "-"),
             sensor.battery !== undefined && sensor.battery !== null ? `battery ${sensor.battery}` : "",
-            sensor.signal !== undefined && sensor.signal !== null ? `signal ${sensor.signal}` : ""
           ].filter(Boolean).join(" / ")
-        ])).join("") || row(["-", "No sensor data", "-", "-"]);
-
-      $("system").textContent = JSON.stringify({
-        name: state.system && state.system.system_name,
-        group_count: state.system && state.system.group_count,
-        sensors: state.system && state.system.sensor_addresses,
-        supply_air: state.system && state.system.supply_air,
-        spill: state.system && state.system.spill,
-        service: state.service,
-        password: state.password,
-        last_led: state.last_led
-      }, null, 2);
+        ])).join("") || row(["-", "No sensor data", "-", "-", "-"]);
     }
 
     function renderEvents(payload) {
@@ -1303,6 +1424,63 @@ INDEX_HTML = """<!doctype html>
     if (window.matchMedia) {
       window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
     }
+
+    $("view-service").addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-service-action]");
+      if (!button) return;
+      const action = button.dataset.serviceAction;
+      button.disabled = true;
+      const previous = button.textContent;
+      button.textContent = "Saving";
+      try {
+        if (action === "pair-sensor") {
+          await sendCommand("pair_sensor", {pairing: button.dataset.pairing === "true"});
+        } else if (action === "group-name") {
+          const card = button.closest("[data-service-group]");
+          await sendCommand("group_name", {
+            group: Number(button.dataset.group),
+            name: card.querySelector('[data-field="group-name"]').value,
+          });
+        } else if (action === "grouping") {
+          const card = button.closest("[data-service-group]");
+          await sendCommand("grouping", {
+            group: Number(button.dataset.group),
+            zone_start: Number(card.querySelector('[data-field="zone-start"]').value),
+            zone_count: Number(card.querySelector('[data-field="zone-count"]').value),
+            min_percent: Number(card.querySelector('[data-field="min-percent"]').value),
+            thermostat: Number(card.querySelector('[data-field="thermostat"]').value),
+          });
+        } else if (action === "spill") {
+          const spillGroups = Array.from(document.querySelectorAll("[data-spill-group]"))
+            .filter((input) => input.checked)
+            .map((input) => Number(input.dataset.spillGroup));
+          const acSpillTypes = Array.from(document.querySelectorAll("[data-spill-ac]"))
+            .sort((a, b) => Number(a.dataset.spillAc) - Number(b.dataset.spillAc))
+            .map((select) => Number(select.value));
+          await sendCommand("spill", {ac_spill_types: acSpillTypes, spill_groups: spillGroups});
+        } else if (action === "balance-start") {
+          await sendCommand("balance_start", {});
+        } else if (action === "balance-stop") {
+          await sendCommand("balance_stop", {});
+        } else if (action === "preference") {
+          await sendCommand("preference", {system_name: $("system-name-input").value});
+        } else if (action === "service-contact") {
+          await sendCommand("service", {
+            company: $("service-company-input").value,
+            phone: $("service-phone-input").value,
+          });
+        }
+        setTimeout(refresh, 300);
+      } catch (err) {
+        setStatus({ok: false, error: err.message});
+      } finally {
+        setTimeout(() => {
+          button.disabled = false;
+          button.textContent = previous;
+          refresh();
+        }, 900);
+      }
+    });
 
     $("groups").addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-action]");
