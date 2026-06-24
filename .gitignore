@@ -1,0 +1,11 @@
+# Local development
+.tmp*/
+logs/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Build output
+*.egg-info/
+dist/
+build/

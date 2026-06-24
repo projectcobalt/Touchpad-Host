@@ -1,0 +1,42 @@
+configuration:
+  transport:
+    name: Transport
+    description: Choose whether the AirTouch RS485 bus is connected directly to Home Assistant or exposed through a TCP serial bridge.
+  serial_port:
+    name: Serial port
+    description: Local USB-RS485 device path, used only when Transport is local_serial.
+  baudrate:
+    name: Baudrate
+    description: Serial baud rate for the AirTouch bus.
+  tcp_host:
+    name: TCP serial host
+    description: Hostname or IP address of the serial-over-TCP bridge, used only when Transport is tcp_serial.
+  tcp_port:
+    name: TCP serial port
+    description: TCP port of the serial-over-TCP bridge.
+  reconnect_interval:
+    name: Reconnect interval
+    description: Seconds to wait before retrying after a serial or TCP transport failure.
+  source_address:
+    name: Touchpad address
+    description: Preferred touchpad address. Auto is recommended so the host avoids any existing touchpad.
+  force_source_address:
+    name: Force address
+    description: Lab override that allows using an occupied touchpad address.
+  detect_seconds:
+    name: Detection window
+    description: Seconds to listen for existing touchpads before starting the fresh boot initialisation.
+  heartbeat_interval:
+    name: Heartbeat interval
+    description: Seconds between touchpad heartbeat messages.
+  heartbeat_payload:
+    name: Heartbeat payload
+    description: Raw hex payload used for the touchpad heartbeat.
+  bus_log:
+    name: Bus log
+    description: Write RX, TX, status, and transaction events to persistent add-on storage.
+  log_level:
+    name: Log level
+    description: Uvicorn service log level.
+network:
+  8099/tcp: HTTP API

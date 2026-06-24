@@ -1,0 +1,54 @@
+name: AirTouch 4 Touchpad Host
+version: "0.1.0"
+slug: airtouch4_touchpad_host
+description: Python host for the AirTouch 4 internal RS485 touchpad protocol.
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+startup: application
+boot: manual
+stage: experimental
+init: false
+panel_admin: true
+watchdog: http://[HOST]:[PORT:8099]/api/health
+ingress: true
+ingress_port: 8099
+ingress_entry: /
+panel_icon: mdi:thermostat
+panel_title: AirTouch 4
+uart: true
+ports:
+  8099/tcp: null
+ports_description:
+  8099/tcp: Optional direct HTTP/WebSocket API port. Ingress does not require this to be exposed.
+options:
+  transport: tcp_serial
+  serial_port: /dev/ttyUSB0
+  baudrate: 115200
+  tcp_host: 192.168.30.56
+  tcp_port: 6638
+  reconnect_interval: 5.0
+  source_address: auto
+  force_source_address: false
+  detect_seconds: 3.0
+  heartbeat_interval: 30.0
+  heartbeat_payload: "00 EA 00"
+  bus_log: true
+  log_level: info
+schema:
+  transport: list(local_serial|tcp_serial)
+  serial_port: str(1,)
+  baudrate: int(1200,1000000)
+  tcp_host: str(1,)
+  tcp_port: port
+  reconnect_interval: float(1,300)
+  source_address: list(auto|0x90|0x91)
+  force_source_address: bool
+  detect_seconds: float(0,30)
+  heartbeat_interval: float(1,300)
+  heartbeat_payload: match(^([0-9A-Fa-f]{2})( [0-9A-Fa-f]{2})*$)
+  bus_log: bool
+  log_level: list(debug|info|warning|error)
