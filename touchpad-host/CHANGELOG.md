@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5
+
+- Route bus frame log lines through Uvicorn's configured logger so they appear
+  in Home Assistant add-on logs.
+
 ## 0.1.4
 
 - Fix UI API polling under Home Assistant ingress double-slash URLs.

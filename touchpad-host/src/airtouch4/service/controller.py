@@ -18,7 +18,7 @@ from ..session.queue import TransactionSpec
 from ..transport import SerialConfig, SerialRs485Transport, TcpSerialConfig, TcpSerialTransport
 
 TransportFactory = Callable[[], AbstractContextManager[TransportLike]]
-LOG = logging.getLogger("airtouch4.service.controller")
+LOG = logging.getLogger("uvicorn.error")
 
 
 @dataclass(frozen=True)
