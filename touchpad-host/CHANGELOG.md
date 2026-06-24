@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.6
+
+- Remove explicit root `ingress_entry`; the Supervisor default is already `/`
+  and the explicit slash was producing doubled ingress URLs.
+- Remove double-slash API route aliases now that the ingress root cause is fixed.
+
 ## 0.1.5
 
 - Route bus frame log lines through Uvicorn's configured logger so they appear

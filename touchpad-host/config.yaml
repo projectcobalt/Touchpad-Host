@@ -1,5 +1,5 @@
 name: AirTouch 4 Touchpad Host
-version: "0.1.5"
+version: "0.1.6"
 slug: airtouch4_touchpad_host
 description: Python host for the AirTouch 4 internal RS485 touchpad protocol.
 arch:
@@ -16,7 +16,6 @@ panel_admin: true
 watchdog: http://[HOST]:[PORT:8099]/api/health
 ingress: true
 ingress_port: 8099
-ingress_entry: /
 panel_icon: mdi:thermostat
 panel_title: AirTouch 4
 uart: true
