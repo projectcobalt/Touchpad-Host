@@ -1,5 +1,5 @@
 name: AirTouch 4 Touchpad Host
-version: "0.1.0"
+version: "0.1.1"
 slug: airtouch4_touchpad_host
 description: Python host for the AirTouch 4 internal RS485 touchpad protocol.
 arch:
@@ -40,15 +40,15 @@ options:
   log_level: info
 schema:
   transport: list(local_serial|tcp_serial)
-  serial_port: str(1,)
-  baudrate: int(1200,1000000)
-  tcp_host: str(1,)
-  tcp_port: port
-  reconnect_interval: float(1,300)
+  serial_port: str
+  baudrate: int
+  tcp_host: str
+  tcp_port: int
+  reconnect_interval: float
   source_address: list(auto|0x90|0x91)
   force_source_address: bool
-  detect_seconds: float(0,30)
-  heartbeat_interval: float(1,300)
+  detect_seconds: float
+  heartbeat_interval: float
   heartbeat_payload: match(^([0-9A-Fa-f]{2})( [0-9A-Fa-f]{2})*$)
   bus_log: bool
   log_level: list(debug|info|warning|error)

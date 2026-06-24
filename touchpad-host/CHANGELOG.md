@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- Relax add-on option schema so TCP serial installs can save an empty local
+  serial port field.
+- Keep mode-aware transport validation in the startup script.
+
 ## 0.1.0
 
 - Initial experimental Home Assistant add-on package.
