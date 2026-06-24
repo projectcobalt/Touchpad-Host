@@ -21,13 +21,21 @@ def build_transaction(action: str, data: dict[str, Any]) -> TransactionSpec:
 def _build_command_spec(action: str, data: dict[str, Any]) -> commands.CommandSpec:
     try:
         if action == "group_power":
-            return commands.group_power_command(_int(data, "group"), _bool(data, "on"))
+            sensor_control = _optional_bool(data, "sensor_control")
+            if sensor_control is None:
+                sensor_control = True
+            value = _group_control_value(data, sensor_control)
+            return commands.group_power_command(_int(data, "group"), _bool(data, "on"), sensor_control=sensor_control, value=value)
         if action == "group_percentage":
             return commands.group_percentage_command(_int(data, "group"), _int(data, "percentage"))
         if action == "group_setpoint":
             return commands.group_setpoint_command(_int(data, "group"), _int(data, "setpoint"))
         if action == "group_turbo":
-            return commands.raw_command(0x20, commands.set_group_turbo(_int(data, "group")))
+            sensor_control = _optional_bool(data, "sensor_control")
+            if sensor_control is None:
+                sensor_control = True
+            value = _group_control_value(data, sensor_control)
+            return commands.raw_command(0x20, commands.set_group_turbo(_int(data, "group"), sensor_control=sensor_control, value=value))
         if action == "ac_status":
             return commands.ac_status_command(
                 _int(data, "ac"),
@@ -102,6 +110,14 @@ def _coerce_bool(value: Any, key: str) -> bool:
         if lowered in {"false", "off", "no", "0"}:
             return False
     raise CommandRequestError(f"{key} must be a boolean")
+
+
+def _group_control_value(data: dict[str, Any], sensor_control: bool) -> int:
+    if "value" in data and data["value"] is not None:
+        return _int(data, "value")
+    if sensor_control:
+        return _optional_int(data, "setpoint") or 23
+    return _optional_int(data, "percentage") or 0
 
 
 def _str(data: dict[str, Any], key: str) -> str:

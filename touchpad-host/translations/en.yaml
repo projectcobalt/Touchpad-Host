@@ -29,9 +29,15 @@ configuration:
   heartbeat_interval:
     name: Heartbeat interval
     description: Seconds between touchpad heartbeat messages.
+  touchpad_temperature_sensor:
+    name: Temperature sensor
+    description: Optional Home Assistant sensor entity ID used for the emulated touchpad temperature at startup.
+  touchpad_temperature:
+    name: Touchpad temperature
+    description: Fallback temperature reported by the emulated touchpad heartbeat when no sensor is configured or readable.
   heartbeat_payload:
     name: Heartbeat payload
-    description: Raw hex payload used for the touchpad heartbeat.
+    description: Optional raw hex override for the touchpad heartbeat; leave blank to use Touchpad temperature.
   bus_log:
     name: Bus log
     description: Write RX, TX, status, and transaction events to persistent add-on storage.

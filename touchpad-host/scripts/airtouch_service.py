@@ -16,6 +16,7 @@ from airtouch4.runtime import RuntimeConfig
 from airtouch4.service.api import create_app
 from airtouch4.service.controller import RuntimeController, RuntimeControllerConfig
 from airtouch4.session.touchscreen import parse_hex_payload
+from airtouch4.payloads.common import encode_internal_temperature
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -31,7 +32,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--bus-log", type=Path, help="Optional raw RX/TX/init JSONL log.")
     parser.add_argument("--detect-seconds", type=float, default=3.0)
     parser.add_argument("--heartbeat-interval", type=float, default=30.0)
-    parser.add_argument("--heartbeat-payload", default="00 EA 00")
+    parser.add_argument("--touchpad-temperature", type=float, default=25.0)
+    parser.add_argument("--heartbeat-payload", default="")
     parser.add_argument("--source-address", default="auto", help="Preferred touchpad source address: auto, 0x90, or 0x91.")
     parser.add_argument("--force-source-address", action="store_true")
     parser.add_argument("--log-level", default="info", choices=("debug", "info", "warning", "error"))
@@ -55,11 +57,17 @@ def main(argv: list[str] | None = None) -> int:
         print("uvicorn is required for the service. Install dependencies from requirements.txt", file=sys.stderr)
         return 2
 
+    heartbeat_payload = (
+        parse_hex_payload(args.heartbeat_payload)
+        if args.heartbeat_payload.strip()
+        else bytes((0x00, encode_internal_temperature(args.touchpad_temperature), 0x00))
+    )
+
     runtime_config = RuntimeConfig(
         active=True,
         detect_seconds=args.detect_seconds,
         heartbeat_interval=args.heartbeat_interval,
-        heartbeat_payload=parse_hex_payload(args.heartbeat_payload),
+        heartbeat_payload=heartbeat_payload,
         source_address=parse_source_address(args.source_address),
         auto_address=True,
         force_source_address=args.force_source_address,

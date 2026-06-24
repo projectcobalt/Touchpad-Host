@@ -1,5 +1,5 @@
 name: AirTouch 4 Touchpad Host
-version: "0.1.7"
+version: "0.1.8"
 slug: airtouch4_touchpad_host
 description: Python host for the AirTouch 4 internal RS485 touchpad protocol.
 arch:
@@ -19,6 +19,7 @@ ingress_port: 8099
 panel_icon: mdi:thermostat
 panel_title: AirTouch 4
 uart: true
+homeassistant_api: true
 ports:
   8099/tcp: null
 ports_description:
@@ -34,7 +35,9 @@ options:
   force_source_address: false
   detect_seconds: 3.0
   heartbeat_interval: 30.0
-  heartbeat_payload: "00 EA 00"
+  touchpad_temperature_sensor: ""
+  touchpad_temperature: 25.0
+  heartbeat_payload: ""
   bus_log: false
   log_level: info
 schema:
@@ -48,6 +51,8 @@ schema:
   force_source_address: bool
   detect_seconds: float
   heartbeat_interval: float
-  heartbeat_payload: match(^([0-9A-Fa-f]{2})( [0-9A-Fa-f]{2})*$)
+  touchpad_temperature_sensor: str
+  touchpad_temperature: float
+  heartbeat_payload: str
   bus_log: bool
   log_level: list(debug|info|warning|error)

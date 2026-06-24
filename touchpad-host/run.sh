@@ -32,7 +32,9 @@ SOURCE_ADDRESS="$(config source_address auto)"
 FORCE_SOURCE_ADDRESS="$(config force_source_address false)"
 DETECT_SECONDS="$(config detect_seconds 3.0)"
 HEARTBEAT_INTERVAL="$(config heartbeat_interval 30.0)"
-HEARTBEAT_PAYLOAD="$(config heartbeat_payload "00 EA 00")"
+TOUCHPAD_TEMPERATURE_SENSOR="$(config touchpad_temperature_sensor "")"
+TOUCHPAD_TEMPERATURE="$(config touchpad_temperature 25.0)"
+HEARTBEAT_PAYLOAD="$(config heartbeat_payload "")"
 BUS_LOG="$(config bus_log true)"
 LOG_LEVEL="$(config log_level info)"
 
@@ -55,6 +57,15 @@ if [[ "${TRANSPORT}" == "tcp_serial" && ( -z "${TCP_HOST}" || -z "${TCP_PORT}" )
     exit 2
 fi
 
+export PYTHONPATH=/opt/airtouch4/src
+
+RESOLVED_HEARTBEAT_PAYLOAD="$(
+    /opt/airtouch4/venv/bin/python /opt/airtouch4/scripts/resolve_touchpad_temperature.py \
+        --sensor "${TOUCHPAD_TEMPERATURE_SENSOR}" \
+        --fallback "${TOUCHPAD_TEMPERATURE}" \
+        --raw-payload "${HEARTBEAT_PAYLOAD}"
+)"
+
 ARGS=(
     "--transport" "${TRANSPORT}"
     "--port" "${SERIAL_PORT}"
@@ -67,7 +78,8 @@ ARGS=(
     "--source-address" "${SOURCE_ADDRESS}"
     "--detect-seconds" "${DETECT_SECONDS}"
     "--heartbeat-interval" "${HEARTBEAT_INTERVAL}"
-    "--heartbeat-payload" "${HEARTBEAT_PAYLOAD}"
+    "--touchpad-temperature" "${TOUCHPAD_TEMPERATURE}"
+    "--heartbeat-payload" "${RESOLVED_HEARTBEAT_PAYLOAD}"
     "--log-level" "${LOG_LEVEL}"
 )
 
@@ -79,8 +91,6 @@ if [[ "${BUS_LOG}" == "true" ]]; then
     mkdir -p /data/logs
     ARGS+=("--bus-log" "/data/logs/airtouch-bus.jsonl")
 fi
-
-export PYTHONPATH=/opt/airtouch4/src
 
 echo "Starting AirTouch 4 touchpad host with ${TRANSPORT}"
 exec /opt/airtouch4/venv/bin/python /opt/airtouch4/scripts/airtouch_service.py "${ARGS[@]}"

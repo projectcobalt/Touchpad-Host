@@ -42,6 +42,18 @@ def parse_internal_temperature(byte: int) -> int | None:
     return byte - 197
 
 
+def encode_internal_temperature(temperature: float) -> int:
+    """Encode one-byte temperatures used in internal touchpanel frames."""
+    rounded = round(temperature)
+    if rounded < -25 or rounded > 58:
+        raise ValueError("touchpad temperature must be between -25 and 58 degrees")
+    if rounded < 15:
+        return rounded + 25
+    if rounded <= 34:
+        return (rounded * 10) - 110
+    return rounded + 197
+
+
 def decode_api_temperature(encoded: int) -> float:
     """Decode the 11-bit AT4 client/API temperature format."""
     return ((encoded >> 5) - 500) / 10

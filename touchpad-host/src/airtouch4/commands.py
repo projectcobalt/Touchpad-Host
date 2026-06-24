@@ -24,27 +24,30 @@ def request_payload(*values: int) -> bytes:
     return bytes(_check_range("byte", value, 0, 255) for value in values)
 
 
-def set_group_power(group: int, on: bool) -> bytes:
+def set_group_control(group: int, power_code: int, *, sensor_control: bool, value: int) -> bytes:
     group = _check_range("group", group, 0, 15)
-    power_code = 1 if on else 0
-    return bytes(((power_code << 6) | group, 0x00))
+    power_code = _check_range("power_code", power_code, 0, 3)
+    if sensor_control:
+        value_byte = 0x80 | (_check_range("setpoint", value, 4, 35) - 4)
+    else:
+        value_byte = _check_range("percentage", value, 0, 100)
+    return bytes(((power_code << 6) | group, value_byte, 0x00, 0x00))
+
+
+def set_group_power(group: int, on: bool, *, sensor_control: bool = True, value: int = 23) -> bytes:
+    return set_group_control(group, 1 if on else 0, sensor_control=sensor_control, value=value)
 
 
 def set_group_percentage(group: int, percentage: int) -> bytes:
-    group = _check_range("group", group, 0, 15)
-    percentage = _check_range("percentage", percentage, 0, 100)
-    return bytes(((2 << 6) | group, percentage))
+    return set_group_control(group, 2, sensor_control=False, value=percentage)
 
 
 def set_group_setpoint(group: int, setpoint: int) -> bytes:
-    group = _check_range("group", group, 0, 15)
-    setpoint = _check_range("setpoint", setpoint, 4, 35)
-    return bytes(((2 << 6) | group, 0x80 | (setpoint - 4)))
+    return set_group_control(group, 2, sensor_control=True, value=setpoint)
 
 
-def set_group_turbo(group: int) -> bytes:
-    group = _check_range("group", group, 0, 15)
-    return bytes(((3 << 6) | group, 0x00))
+def set_group_turbo(group: int, *, sensor_control: bool = True, value: int = 23) -> bytes:
+    return set_group_control(group, 3, sensor_control=sensor_control, value=value)
 
 
 def set_active_favourite(favourite: int) -> bytes:
@@ -54,10 +57,16 @@ def set_active_favourite(favourite: int) -> bytes:
 def set_ac_status(ac: int, *, power_on: bool | None = None, mode: int | None = None, fan: int | None = None, setpoint: int | None = None) -> bytes:
     ac = _check_range("ac", ac, 0, 3)
     power_bits = 0x00 if power_on is None else 0xC0 if power_on else 0x80
-    mode_value = 0x00 if mode is None else _check_range("mode", mode, 0, 15)
-    fan_value = 0x00 if fan is None else _check_range("fan", fan, 0, 15)
-    setpoint_value = 0x1F if setpoint is None else _check_range("setpoint", setpoint, 4, 35) - 4
-    return bytes((power_bits | ac, (mode_value << 4) | fan_value, setpoint_value))
+    mode_value = 7 if mode is None else _check_range("mode", mode, 0, 15)
+    fan_value = 7 if fan is None else _check_range("fan", fan, 0, 15)
+    if fan_value > 6:
+        fan_value = 7
+    if mode_value > 4:
+        mode_fan = 0x80 | fan_value
+    else:
+        mode_fan = (mode_value << 4) | fan_value
+    setpoint_value = 0x1F if setpoint is None else (_check_range("setpoint", setpoint, 4, 35) - 4) & 0x1F
+    return bytes((power_bits | ac, mode_fan, setpoint_value, 0x00))
 
 
 def set_group_name(group: int, name: str) -> bytes:
@@ -68,7 +77,7 @@ def set_group_name(group: int, name: str) -> bytes:
 def set_favourite(favourite: int, name: str, groups: list[int] | tuple[int, ...]) -> bytes:
     favourite = _check_range("favourite", favourite, 0, 3)
     bitmap = _group_bitmap(groups)
-    return bytes((favourite,)) + _ascii_fixed(name, 8) + bytes(bitmap)
+    return bytes((0x80 | favourite,)) + _ascii_fixed(name, 8) + bytes(bitmap)
 
 
 def set_grouping(group: int, *, zone_start: int, zone_count: int, min_percent: int, thermostat: int) -> bytes:
@@ -172,8 +181,8 @@ class CommandSpec:
     payload: bytes
 
 
-def group_power_command(group: int, on: bool) -> CommandSpec:
-    return CommandSpec(0x20, set_group_power(group, on))
+def group_power_command(group: int, on: bool, *, sensor_control: bool = True, value: int = 23) -> CommandSpec:
+    return CommandSpec(0x20, set_group_power(group, on, sensor_control=sensor_control, value=value))
 
 
 def group_percentage_command(group: int, percentage: int) -> CommandSpec:

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.8
+
+- Add startup config for an optional Home Assistant temperature sensor to feed
+  the emulated touchpad heartbeat.
+- Keep a numeric fallback touchpad temperature and a raw heartbeat payload
+  override for lab use.
+- Fix group control, AC control, favourite, and turbo command builders to match
+  APK/touchpad payload shapes before exposing more controls.
+
 ## 0.1.7
 
 - Add group tile power controls backed by the runtime command API.

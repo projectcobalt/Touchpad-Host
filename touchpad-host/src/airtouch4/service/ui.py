@@ -468,6 +468,9 @@ INDEX_HTML = """<!doctype html>
               data-action="group-power"
               data-group="${escapeHtml(id)}"
               data-on="${isOn ? "false" : "true"}"
+              data-sensor-control="${status.sensor_control ? "true" : "false"}"
+              data-setpoint="${escapeHtml(status.setpoint ?? "")}"
+              data-percentage="${escapeHtml(status.percentage ?? "")}"
               ${pending ? "disabled" : ""}
             >${escapeHtml(pending ? "Sending" : (isOn ? "Off" : "On"))}</button>
           </div>
@@ -552,7 +555,10 @@ INDEX_HTML = """<!doctype html>
       try {
         await sendCommand("group_power", {
           group: Number(group),
-          on: button.dataset.on === "true"
+          on: button.dataset.on === "true",
+          sensor_control: button.dataset.sensorControl === "true",
+          setpoint: Number(button.dataset.setpoint),
+          percentage: Number(button.dataset.percentage)
         });
         setTimeout(refresh, 300);
       } catch (err) {
