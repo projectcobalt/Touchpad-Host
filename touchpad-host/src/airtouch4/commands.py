@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any, Mapping, Sequence
 
 
 class CommandBuildError(ValueError):
@@ -157,6 +158,151 @@ def set_preference_full(
     return _ascii_fixed(system_name, 16) + bytes((flags_16, byte_17, byte_18))
 
 
+def set_ac_base_info(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    one_duct_system: bool = False,
+    ac_count: int | None = None,
+) -> bytes:
+    count = len(records) if ac_count is None else _check_range("ac_count", ac_count, 1, 4)
+    if len(records) != count:
+        raise CommandBuildError(f"expected {count} AC base records, got {len(records)}")
+
+    payload = bytearray(2 + count * 12)
+    payload[0] = count
+    payload[1] = 1 if one_duct_system else 0
+
+    records_by_ac = {int(record.get("ac", index)): record for index, record in enumerate(records)}
+    for ac in range(count):
+        if ac not in records_by_ac:
+            raise CommandBuildError(f"missing AC base record for ac {ac}")
+        record = records_by_ac[ac]
+        group_start = _check_range("group_start", int(record.get("group_start", 0)), 0, 63)
+        group_count = _check_range("group_count", int(record.get("group_count", 0)), 0, 63)
+        brand = _check_range("brand", int(record.get("brand", 0)), 0, 0xFFFF)
+        name = str(record.get("name", ""))
+
+        offset = 2 + ac * 12
+        payload[offset] = ac | ((group_start // 16) << 4) | ((group_count // 16) << 6)
+        payload[offset + 1] = (group_start & 0x0F) | ((group_count & 0x0F) << 4)
+        payload[offset + 2:offset + 4] = brand.to_bytes(2, "big")
+        payload[offset + 4:offset + 12] = _ascii_fixed(name, 8)
+
+    return bytes(payload)
+
+
+def set_ac_group_counts(
+    records: Sequence[Mapping[str, Any]],
+    group_counts: Sequence[int],
+    *,
+    one_duct_system: bool = False,
+) -> bytes:
+    updated: list[dict[str, Any]] = []
+    group_start = 0
+    for index, record in enumerate(records):
+        if index >= len(group_counts):
+            raise CommandBuildError(f"missing group_count for ac {index}")
+        group_count = _check_range("group_count", int(group_counts[index]), 0, 63)
+        next_record = dict(record)
+        next_record["group_start"] = group_start
+        next_record["group_count"] = group_count
+        updated.append(next_record)
+        group_start += group_count
+    return set_ac_base_info(updated, one_duct_system=one_duct_system)
+
+
+def set_ac_name(
+    records: Sequence[Mapping[str, Any]],
+    ac: int,
+    name: str,
+    *,
+    one_duct_system: bool = False,
+) -> bytes:
+    ac = _check_range("ac", ac, 0, 3)
+    updated = []
+    seen = False
+    for record in records:
+        next_record = dict(record)
+        if int(next_record.get("ac", -1)) == ac:
+            next_record["name"] = name
+            seen = True
+        updated.append(next_record)
+    if not seen:
+        raise CommandBuildError(f"missing AC base record for ac {ac}")
+    return set_ac_base_info(updated, one_duct_system=one_duct_system)
+
+
+def set_duct_system(records: Sequence[Mapping[str, Any]], one_duct_system: bool) -> bytes:
+    return set_ac_base_info(records, one_duct_system=one_duct_system)
+
+
+def set_ac_setting_record(
+    ac: int,
+    *,
+    hide_spill_group: bool = False,
+    ctrl_thermostat: int = 0,
+    cool_adjust: int = 0,
+    heat_adjust: int = 0,
+    modes: Mapping[str, bool] | None = None,
+    fan_values: Mapping[str, int] | None = None,
+    auto_off: bool = False,
+    on_time_limit: int = 0,
+    max_setpoint: int = 30,
+    min_setpoint: int = 16,
+    selector_visibility: Mapping[str, Any] | None = None,
+) -> bytes:
+    ac = _check_range("ac", ac, 0, 3)
+    cool_adjust = _check_range("cool_adjust", cool_adjust, -8, 7)
+    heat_adjust = _check_range("heat_adjust", heat_adjust, -8, 7)
+    modes = modes or {}
+    fan_values = fan_values or {}
+    selector_visibility = selector_visibility or {}
+
+    payload = bytearray(15)
+    payload[0] = ac | (0x80 if hide_spill_group else 0x00)
+    payload[1] = 13
+    payload[2] = _check_range("ctrl_thermostat", ctrl_thermostat, 0, 255)
+    payload[3] = ((cool_adjust + 8) << 4) | (heat_adjust + 8)
+    payload[4] = (
+        (0x10 if bool(modes.get("cool", False)) else 0)
+        | (0x08 if bool(modes.get("fan", False)) else 0)
+        | (0x04 if bool(modes.get("dry", False)) else 0)
+        | (0x02 if bool(modes.get("heat", False)) else 0)
+        | (0x01 if bool(modes.get("auto", False)) else 0)
+    )
+    payload[5] = _fan_nibble(fan_values, "auto") | (_fan_nibble(fan_values, "quiet") << 4)
+    payload[6] = _fan_nibble(fan_values, "low") | (_fan_nibble(fan_values, "medium") << 4)
+    payload[7] = _fan_nibble(fan_values, "high") | (_fan_nibble(fan_values, "powerful") << 4)
+    payload[8] = _fan_nibble(fan_values, "turbo")
+    payload[9] = _check_range("on_time_limit", on_time_limit, 0, 15) | (0x10 if auto_off else 0x00)
+    payload[10] = _check_range("max_setpoint", max_setpoint, 0, 255)
+    payload[11] = _check_range("min_setpoint", min_setpoint, 0, 255)
+    payload[12] = _selector_visibility_byte(selector_visibility)
+    payload[13] = _check_range("groups_1_8_bitmap", int(selector_visibility.get("groups_1_8_bitmap", 0)), 0, 255)
+    payload[14] = _check_range("groups_9_16_bitmap", int(selector_visibility.get("groups_9_16_bitmap", 0)), 0, 255)
+    return bytes(payload)
+
+
+def set_ac_setting_new(records: Sequence[Mapping[str, Any]]) -> bytes:
+    return b"".join(
+        set_ac_setting_record(
+            int(record.get("ac", 0)),
+            hide_spill_group=bool(record.get("hide_spill_group", False)),
+            ctrl_thermostat=int(record.get("ctrl_thermostat", 0)),
+            cool_adjust=int(record.get("cool_adjust", 0)),
+            heat_adjust=int(record.get("heat_adjust", 0)),
+            modes=record.get("modes"),
+            fan_values=record.get("fan_values"),
+            auto_off=bool(record.get("auto_off", False)),
+            on_time_limit=int(record.get("on_time_limit", 0)),
+            max_setpoint=int(record.get("max_setpoint", 30)),
+            min_setpoint=int(record.get("min_setpoint", 16)),
+            selector_visibility=record.get("selector_visibility"),
+        )
+        for record in records
+    )
+
+
 def set_parameters(
     group_count: int,
     *,
@@ -193,8 +339,59 @@ def set_timer(hour: int | None, minute: int | None) -> bytes:
     ))
 
 
+def set_timer_value(timer: Mapping[str, Any] | None) -> bytes:
+    if not timer or not bool(timer.get("enabled", False)):
+        hour = int(timer.get("hour", 0)) if timer else 0
+        minute = int(timer.get("minute", 0)) if timer else 0
+        return bytes((
+            _check_range("hour", hour, 0, 23) | 0x80,
+            _check_range("minute", minute, 0, 59),
+        ))
+    return set_timer(_check_range("hour", int(timer.get("hour", 0)), 0, 23), _check_range("minute", int(timer.get("minute", 0)), 0, 59))
+
+
 def set_ac_timer(ac: int, *, hour: int | None, minute: int | None) -> bytes:
     return bytes((_check_range("ac", ac, 0, 3),)) + set_timer(hour, minute)
+
+
+def set_ac_timer_table(records: Sequence[Mapping[str, Any]], *, ac_count: int = 4) -> bytes:
+    ac_count = _check_range("ac_count", ac_count, 1, 4)
+    payload = bytearray(32)
+    records_by_ac = {int(record.get("ac", index)): record for index, record in enumerate(records)}
+    for ac in range(ac_count):
+        record = records_by_ac.get(ac, {})
+        offset = ac * 8
+        payload[offset:offset + 2] = set_timer_value(record.get("on_timer") or record.get("timer"))
+        payload[offset + 2:offset + 4] = set_timer_value(record.get("off_timer"))
+    return bytes(payload)
+
+
+def set_program_define_new(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    program_count: int | None = None,
+    linked_ac: bool = False,
+) -> bytes:
+    count = len(records) if program_count is None else _check_range("program_count", program_count, 0, 8)
+    payload = bytearray(260)
+    payload[0] = count
+    payload[1] = 1 if linked_ac else 0
+    payload[3] = 32
+
+    records_by_program = {int(record.get("program", index)): record for index, record in enumerate(records)}
+    for program in range(8):
+        record = records_by_program.get(program)
+        payload[4 + program * 32:4 + (program + 1) * 32] = _program_record(program, record)
+    return bytes(payload)
+
+
+def set_program_count(
+    records: Sequence[Mapping[str, Any]],
+    count: int,
+    *,
+    linked_ac: bool = False,
+) -> bytes:
+    return set_program_define_new(records, program_count=count, linked_ac=linked_ac)
 
 
 def set_password_info(page: int, payload: bytes) -> bytes:
@@ -257,6 +454,55 @@ def _group_bitmap(groups: list[int] | tuple[int, ...]) -> tuple[int, int]:
     return bitmap[0], bitmap[1]
 
 
+def _fan_nibble(values: Mapping[str, int], name: str) -> int:
+    return _check_range(f"fan_{name}", int(values.get(name, 0)), 0, 15)
+
+
+def _selector_visibility_byte(values: Mapping[str, Any]) -> int:
+    return (
+        (0x02 if bool(values.get("auto", False)) else 0)
+        | (0x04 if bool(values.get("touchpad_1", False)) else 0)
+        | (0x08 if bool(values.get("touchpad_2", False)) else 0)
+        | (0x10 if bool(values.get("average", False)) else 0)
+        | (0x20 if bool(values.get("economy", False)) else 0)
+    )
+
+
+def _program_record(program: int, record: Mapping[str, Any] | None) -> bytes:
+    payload = bytearray(_raw_record(record, 32) if record else b"\x00" * 32)
+    payload[0] = _check_range("program", program, 0, 7) | (0x80 if bool((record or {}).get("enabled", False)) else 0x00)
+    if record is None:
+        payload[2:10] = _ascii_fixed(f"Program{program + 1}", 8)
+        payload[20] = 0x80
+        payload[22] = 0x1A
+        payload[24] = 0x80
+        return bytes(payload)
+
+    payload[1] = _check_range("days_bitmap", int(record.get("days_bitmap", payload[1] & 0x7F)), 0, 0x7F)
+    payload[2:10] = _ascii_fixed(str(record.get("name", _ascii_fixed(f"Program{program + 1}", 8).decode("ascii"))), 8)
+    payload[10] = _check_range("groups_1_8_bitmap", int(record.get("groups_1_8_bitmap", payload[10])), 0, 255)
+    payload[11] = _check_range("groups_9_16_bitmap", int(record.get("groups_9_16_bitmap", payload[11])), 0, 255)
+    payload[18] = _check_range("active_ac_bitmap", int(record.get("active_ac_bitmap", payload[18] & 0x0F)), 0, 0x0F)
+    payload[20:22] = set_timer_value(record.get("on_timer"))
+    payload[22] = _check_range("on_setpoint", int(record.get("on_setpoint", payload[22] or 0x1A)), 0, 63)
+    payload[24:26] = set_timer_value(record.get("off_timer"))
+    return bytes(payload)
+
+
+def _raw_record(record: Mapping[str, Any] | None, length: int) -> bytes:
+    if not record or "raw" not in record:
+        return b"\x00" * length
+    raw = record["raw"]
+    if isinstance(raw, bytes | bytearray):
+        data = bytes(raw)
+    elif isinstance(raw, str):
+        compact = raw.replace(" ", "").replace(":", "").replace("-", "")
+        data = bytes.fromhex(compact)
+    else:
+        data = bytes(int(item) & 0xFF for item in raw)
+    return data[:length].ljust(length, b"\x00")
+
+
 @dataclass(frozen=True)
 class CommandSpec:
     command: int
@@ -291,6 +537,10 @@ def ac_timer_command(ac: int, *, hour: int | None, minute: int | None) -> Comman
     return CommandSpec(0x36, set_ac_timer(ac, hour=hour, minute=minute))
 
 
+def ac_timer_table_command(records: Sequence[Mapping[str, Any]], *, ac_count: int = 4) -> CommandSpec:
+    return CommandSpec(0x36, set_ac_timer_table(records, ac_count=ac_count))
+
+
 def group_name_command(group: int, name: str) -> CommandSpec:
     return CommandSpec(0x52, set_group_name(group, name))
 
@@ -301,6 +551,18 @@ def preference_command(system_name: str) -> CommandSpec:
 
 def preference_full_command(system_name: str, **kwargs: bool | int) -> CommandSpec:
     return CommandSpec(0x54, set_preference_full(system_name, **kwargs))
+
+
+def ac_base_info_command(records: Sequence[Mapping[str, Any]], **kwargs: bool | int | None) -> CommandSpec:
+    return CommandSpec(0x74, set_ac_base_info(records, **kwargs))
+
+
+def ac_setting_new_command(records: Sequence[Mapping[str, Any]]) -> CommandSpec:
+    return CommandSpec(0x78, set_ac_setting_new(records))
+
+
+def program_define_new_command(records: Sequence[Mapping[str, Any]], **kwargs: bool | int | None) -> CommandSpec:
+    return CommandSpec(0x3C, set_program_define_new(records, **kwargs))
 
 
 def parameters_command(group_count: int, **kwargs: int | bool) -> CommandSpec:

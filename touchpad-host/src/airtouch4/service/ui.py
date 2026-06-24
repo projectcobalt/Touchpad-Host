@@ -837,6 +837,7 @@ INDEX_HTML = """<!doctype html>
     let zonePage = 0;
     let configuredTheme = "system";
     let selectedTheme = localStorage.getItem(THEME_KEY) || "system";
+    let latestState = {};
 
     function apiPath(path) {
       return `${API_ROOT}/api/${path}`;
@@ -876,6 +877,20 @@ INDEX_HTML = """<!doctype html>
 
     function temp(value) {
       return value === undefined || value === null ? "-" : `${value} C`;
+    }
+
+    function timeText(timer) {
+      return timer && timer.enabled ? `${timer.hour}:${String(timer.minute).padStart(2, "0")}` : "-";
+    }
+
+    function timerFields(prefix, timer = {}) {
+      return `
+        <div class="field"><label>${prefix} enabled</label><select data-field="${prefix.toLowerCase()}-enabled">
+          <option value="true" ${timer.enabled ? "selected" : ""}>On</option>
+          <option value="false" ${!timer.enabled ? "selected" : ""}>Off</option>
+        </select></div>
+        <div class="field"><label>${prefix} hour</label><input data-field="${prefix.toLowerCase()}-hour" type="number" min="0" max="23" value="${escapeHtml(timer.hour ?? 0)}"></div>
+        <div class="field"><label>${prefix} min</label><input data-field="${prefix.toLowerCase()}-minute" type="number" min="0" max="59" value="${escapeHtml(timer.minute ?? 0)}"></div>`;
     }
 
     function themeToApply() {
@@ -1282,6 +1297,72 @@ INDEX_HTML = """<!doctype html>
       }).join("") || '<div class="muted">No favourite data</div>';
     }
 
+    function acBaseRecordsFromState() {
+      return visibleAcs(latestState).map(([id, ac]) => ({
+        ac: Number(id),
+        group_start: Number((ac.base || {}).group_start ?? 0),
+        group_count: Number((ac.base || {}).group_count ?? 0),
+        brand: Number((ac.base || {}).brand ?? 0),
+        name: (ac.base || {}).name || `AC ${Number(id) + 1}`
+      }));
+    }
+
+    function acSettingRecordsFromState() {
+      return visibleAcs(latestState).map(([id, ac]) => {
+        const settings = ac.settings || {};
+        return {
+          ac: Number(id),
+          hide_spill_group: !!settings.hide_spill_group,
+          ctrl_thermostat: Number(settings.ctrl_thermostat ?? 0),
+          cool_adjust: Number(settings.cool_adjust ?? 0),
+          heat_adjust: Number(settings.heat_adjust ?? 0),
+          modes: settings.modes || {},
+          fan_values: settings.fan_values || {},
+          auto_off: !!settings.auto_off,
+          on_time_limit: Number(settings.on_time_limit ?? 0),
+          max_setpoint: Number(settings.max_setpoint ?? 30),
+          min_setpoint: Number(settings.min_setpoint ?? 16),
+          selector_visibility: settings.selector_visibility || {}
+        };
+      });
+    }
+
+    function programRecordsFromState() {
+      return Object.entries(latestState.programs || {})
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .map(([id, program]) => ({
+          ...program,
+          program: Number(program.program ?? id),
+          enabled: !!program.enabled,
+          days_bitmap: Number(program.days_bitmap ?? 0),
+          groups_1_8_bitmap: Number(program.groups_1_8_bitmap ?? 0),
+          groups_9_16_bitmap: Number(program.groups_9_16_bitmap ?? 0),
+          active_ac_bitmap: Number(program.active_ac_bitmap ?? 0),
+          on_setpoint: Number(program.on_setpoint ?? 26),
+          on_timer: program.on_timer || {enabled: false},
+          off_timer: program.off_timer || {enabled: false}
+        }));
+    }
+
+    function acTimerRecordsFromState() {
+      return visibleAcs(latestState).map(([id, ac]) => {
+        const timer = ac.timer || {};
+        return {
+          ac: Number(id),
+          on_timer: timer.on_timer || timer.timer || {enabled: false},
+          off_timer: timer.off_timer || {enabled: false}
+        };
+      });
+    }
+
+    function timerFromCard(card, prefix) {
+      return {
+        enabled: card.querySelector(`[data-field="${prefix}-enabled"]`).value === "true",
+        hour: Number(card.querySelector(`[data-field="${prefix}-hour"]`).value),
+        minute: Number(card.querySelector(`[data-field="${prefix}-minute"]`).value)
+      };
+    }
+
     function renderPrograms(programs, groups) {
       const entries = Object.entries(programs || {}).sort(([a], [b]) => Number(a) - Number(b));
       $("programs").innerHTML = entries.map(([_id, program]) => {
@@ -1289,11 +1370,25 @@ INDEX_HTML = """<!doctype html>
         const onTimer = program.on_timer || {};
         const offTimer = program.off_timer || {};
         return `
-          <article class="card">
+          <article class="card" data-program="${escapeHtml(program.program ?? _id)}">
             <div class="card-title">${escapeHtml(program.name || `Program ${(program.program ?? 0) + 1}`)}</div>
             <div class="muted">${escapeHtml(groupNames.length ? groupNames.join(", ") : "No zones selected")}</div>
             <div><span class="${program.enabled ? "pill on" : "pill"}">${escapeHtml(program.enabled ? "enabled" : "off")}</span></div>
-            <div class="muted">On ${escapeHtml(onTimer.enabled ? `${onTimer.hour}:${String(onTimer.minute).padStart(2, "0")}` : "-")} / Off ${escapeHtml(offTimer.enabled ? `${offTimer.hour}:${String(offTimer.minute).padStart(2, "0")}` : "-")}</div>
+            <div class="muted">On ${escapeHtml(timeText(onTimer))} / Off ${escapeHtml(timeText(offTimer))}</div>
+            <div class="service-card-body">
+              <div class="field-grid">
+                <div class="field"><label>Name</label><input data-field="program-name" maxlength="8" value="${escapeHtml(program.name || "")}"></div>
+                <div class="field"><label>Enabled</label><select data-field="program-enabled"><option value="true" ${program.enabled ? "selected" : ""}>On</option><option value="false" ${!program.enabled ? "selected" : ""}>Off</option></select></div>
+                <div class="field"><label>Days</label><input data-field="program-days" type="number" min="0" max="127" value="${escapeHtml(program.days_bitmap ?? 0)}"></div>
+                <div class="field"><label>Zones 1-8</label><input data-field="program-groups-1" type="number" min="0" max="255" value="${escapeHtml(program.groups_1_8_bitmap ?? 0)}"></div>
+                <div class="field"><label>Zones 9-16</label><input data-field="program-groups-2" type="number" min="0" max="255" value="${escapeHtml(program.groups_9_16_bitmap ?? 0)}"></div>
+                <div class="field"><label>AC mask</label><input data-field="program-acs" type="number" min="0" max="15" value="${escapeHtml(program.active_ac_bitmap ?? 0)}"></div>
+                ${timerFields("On", onTimer)}
+                <div class="field"><label>Setpoint</label><input data-field="program-on-setpoint" type="number" min="0" max="63" value="${escapeHtml(program.on_setpoint ?? 26)}"></div>
+                ${timerFields("Off", offTimer)}
+              </div>
+              <div class="service-actions"><button type="button" data-program-action="program-save" data-program="${escapeHtml(program.program ?? _id)}">Save Program</button></div>
+            </div>
           </article>`;
       }).join("") || '<div class="muted">No program data</div>';
     }
@@ -1304,14 +1399,24 @@ INDEX_HTML = """<!doctype html>
       $("ac-timers").innerHTML = acs.map(([id, ac]) => {
         const base = ac.base || {};
         const status = ac.status || {};
-        return infoCard(
-          base.name || `AC ${Number(id) + 1}`,
-          `${status.power_on ? "On" : "Off"} / ${modeName(status.mode)} / ${fanName(status.fan)} / ${temp(status.setpoint)}`
-        );
+        const timer = ac.timer || {};
+        const onTimer = timer.on_timer || timer.timer || {};
+        const offTimer = timer.off_timer || {};
+        return `
+          <article class="card" data-ac-timer="${escapeHtml(id)}">
+            <div class="card-title">${escapeHtml(base.name || `AC ${Number(id) + 1}`)}</div>
+            <div class="muted">${escapeHtml(status.power_on ? "On" : "Off")} / ${escapeHtml(modeName(status.mode))} / ${escapeHtml(fanName(status.fan))} / ${escapeHtml(temp(status.setpoint))}</div>
+            <div class="muted">On ${escapeHtml(timeText(onTimer))} / Off ${escapeHtml(timeText(offTimer))}</div>
+            <div class="service-card-body">
+              <div class="field-grid">${timerFields("On", onTimer)}${timerFields("Off", offTimer)}</div>
+              <div class="service-actions"><button type="button" data-program-action="ac-timer-save" data-ac="${escapeHtml(id)}">Save Timer</button></div>
+            </div>
+          </article>`;
       }).join("") || '<div class="muted">No AC timer data</div>';
       $("program-options").textContent = JSON.stringify({
         known_programs: Object.keys(programs).length,
-        active_favourite: state.active_favourite,
+        active_favourite: (state.system || {}).active_favourite,
+        linked_ac: (state.system || {}).programs_linked_ac,
         timers_available: Object.keys(programs).some((id) => {
           const program = programs[id] || {};
           return !!((program.on_timer || {}).enabled || (program.off_timer || {}).enabled);
@@ -1397,10 +1502,31 @@ INDEX_HTML = """<!doctype html>
       $("ac-setup").innerHTML = acs.map(([id, ac]) => {
         const base = ac.base || {};
         const settings = ac.settings || {};
-        return infoCard(
-          base.name || `AC ${Number(id) + 1}`,
-          `Groups ${text(base.group_start)}-${Number.isInteger(base.group_start) && Number.isInteger(base.group_count) ? base.group_start + base.group_count - 1 : "-"} / brand ${text(base.brand)} / hide spill ${settings.hide_spill_group ? "yes" : "no"}`
-        );
+        return `
+          <article class="card" data-service-ac="${escapeHtml(id)}">
+            <div class="card-title">${escapeHtml(base.name || `AC ${Number(id) + 1}`)}</div>
+            <div class="muted">Groups ${escapeHtml(text(base.group_start))}-${escapeHtml(Number.isInteger(base.group_start) && Number.isInteger(base.group_count) ? base.group_start + base.group_count - 1 : "-")} / brand ${escapeHtml(text(base.brand))} / hide spill ${escapeHtml(settings.hide_spill_group ? "yes" : "no")}</div>
+            <div class="service-card-body">
+              <div class="field-grid">
+                <div class="field"><label>Name</label><input data-field="ac-name" maxlength="8" value="${escapeHtml(base.name || "")}"></div>
+                <div class="field"><label>Group start</label><input data-field="ac-group-start" type="number" min="0" max="63" value="${escapeHtml(base.group_start ?? 0)}"></div>
+                <div class="field"><label>Group count</label><input data-field="ac-group-count" type="number" min="0" max="63" value="${escapeHtml(base.group_count ?? 0)}"></div>
+                <div class="field"><label>Brand</label><input data-field="ac-brand" type="number" min="0" max="65535" value="${escapeHtml(base.brand ?? 0)}"></div>
+                <div class="field"><label>Hide spill</label><select data-field="hide-spill"><option value="true" ${settings.hide_spill_group ? "selected" : ""}>Yes</option><option value="false" ${!settings.hide_spill_group ? "selected" : ""}>No</option></select></div>
+                <div class="field"><label>Thermostat</label><input data-field="ctrl-thermostat" type="number" min="0" max="255" value="${escapeHtml(settings.ctrl_thermostat ?? 0)}"></div>
+                <div class="field"><label>Cool adjust</label><input data-field="cool-adjust" type="number" min="-8" max="7" value="${escapeHtml(settings.cool_adjust ?? 0)}"></div>
+                <div class="field"><label>Heat adjust</label><input data-field="heat-adjust" type="number" min="-8" max="7" value="${escapeHtml(settings.heat_adjust ?? 0)}"></div>
+                <div class="field"><label>Min set</label><input data-field="min-setpoint" type="number" min="0" max="255" value="${escapeHtml(settings.min_setpoint ?? 16)}"></div>
+                <div class="field"><label>Max set</label><input data-field="max-setpoint" type="number" min="0" max="255" value="${escapeHtml(settings.max_setpoint ?? 30)}"></div>
+                <div class="field"><label>Auto off</label><select data-field="auto-off"><option value="true" ${settings.auto_off ? "selected" : ""}>On</option><option value="false" ${!settings.auto_off ? "selected" : ""}>Off</option></select></div>
+                <div class="field"><label>Time limit</label><input data-field="on-time-limit" type="number" min="0" max="15" value="${escapeHtml(settings.on_time_limit ?? 0)}"></div>
+              </div>
+              <div class="service-actions">
+                <button type="button" data-service-action="ac-base-info" data-ac="${escapeHtml(id)}">Save AC Base</button>
+                <button type="button" class="secondary" data-service-action="ac-setting-new" data-ac="${escapeHtml(id)}">Save AC Settings</button>
+              </div>
+            </div>
+          </article>`;
       }).join("") || '<div class="muted">No AC setup data</div>';
       if (document.activeElement !== $("system-name-input")) $("system-name-input").value = system.system_name || "";
       const service = state.service || {};
@@ -1429,6 +1555,7 @@ INDEX_HTML = """<!doctype html>
       const runtime = (payload.runtime && payload.runtime.runtime) || {};
       const transactions = (payload.runtime && payload.runtime.transactions) || {};
       const state = (payload.runtime && payload.runtime.state) || {};
+      latestState = state;
       const integrations = payload.integrations || {};
       const config = controller.config || {};
       configuredTheme = config.ui_theme || "system";
@@ -1583,6 +1710,36 @@ INDEX_HTML = """<!doctype html>
           await sendCommand("balance_start", {});
         } else if (action === "balance-stop") {
           await sendCommand("balance_stop", {});
+        } else if (action === "ac-base-info") {
+          const ac = Number(button.dataset.ac);
+          const card = button.closest("[data-service-ac]");
+          const records = acBaseRecordsFromState();
+          const record = records.find((item) => item.ac === ac);
+          if (!record) throw new Error(`No AC base state for AC ${ac + 1}`);
+          record.name = card.querySelector('[data-field="ac-name"]').value;
+          record.group_start = Number(card.querySelector('[data-field="ac-group-start"]').value);
+          record.group_count = Number(card.querySelector('[data-field="ac-group-count"]').value);
+          record.brand = Number(card.querySelector('[data-field="ac-brand"]').value);
+          await sendCommand("ac_base_info", {
+            one_duct_system: !!((latestState.system || {}).one_duct_system),
+            ac_count: records.length,
+            records
+          });
+        } else if (action === "ac-setting-new") {
+          const ac = Number(button.dataset.ac);
+          const card = button.closest("[data-service-ac]");
+          const records = acSettingRecordsFromState();
+          const record = records.find((item) => item.ac === ac);
+          if (!record) throw new Error(`No AC setting state for AC ${ac + 1}`);
+          record.hide_spill_group = card.querySelector('[data-field="hide-spill"]').value === "true";
+          record.ctrl_thermostat = Number(card.querySelector('[data-field="ctrl-thermostat"]').value);
+          record.cool_adjust = Number(card.querySelector('[data-field="cool-adjust"]').value);
+          record.heat_adjust = Number(card.querySelector('[data-field="heat-adjust"]').value);
+          record.min_setpoint = Number(card.querySelector('[data-field="min-setpoint"]').value);
+          record.max_setpoint = Number(card.querySelector('[data-field="max-setpoint"]').value);
+          record.auto_off = card.querySelector('[data-field="auto-off"]').value === "true";
+          record.on_time_limit = Number(card.querySelector('[data-field="on-time-limit"]').value);
+          await sendCommand("ac_setting_new", {records});
         } else if (action === "preference") {
           await sendCommand("preference", {system_name: $("system-name-input").value});
         } else if (action === "service-contact") {
@@ -1732,6 +1889,55 @@ INDEX_HTML = """<!doctype html>
       } finally {
         setTimeout(() => {
           pendingFavourites.delete(favourite);
+          refresh();
+        }, 900);
+      }
+    });
+
+    $("view-programs").addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-program-action]");
+      if (!button) return;
+      const previous = button.textContent;
+      button.disabled = true;
+      button.textContent = "Saving";
+      try {
+        if (button.dataset.programAction === "program-save") {
+          const program = Number(button.dataset.program);
+          const card = button.closest("[data-program]");
+          const records = programRecordsFromState();
+          const record = records.find((item) => item.program === program);
+          if (!record) throw new Error(`No program state for program ${program + 1}`);
+          record.name = card.querySelector('[data-field="program-name"]').value;
+          record.enabled = card.querySelector('[data-field="program-enabled"]').value === "true";
+          record.days_bitmap = Number(card.querySelector('[data-field="program-days"]').value);
+          record.groups_1_8_bitmap = Number(card.querySelector('[data-field="program-groups-1"]').value);
+          record.groups_9_16_bitmap = Number(card.querySelector('[data-field="program-groups-2"]').value);
+          record.active_ac_bitmap = Number(card.querySelector('[data-field="program-acs"]').value);
+          record.on_timer = timerFromCard(card, "on");
+          record.off_timer = timerFromCard(card, "off");
+          record.on_setpoint = Number(card.querySelector('[data-field="program-on-setpoint"]').value);
+          await sendCommand("program_define_new", {
+            program_count: Number((latestState.system || {}).program_count ?? records.length),
+            linked_ac: !!((latestState.system || {}).programs_linked_ac),
+            records
+          });
+        } else if (button.dataset.programAction === "ac-timer-save") {
+          const ac = Number(button.dataset.ac);
+          const card = button.closest("[data-ac-timer]");
+          const records = acTimerRecordsFromState();
+          const record = records.find((item) => item.ac === ac);
+          if (!record) throw new Error(`No AC timer state for AC ${ac + 1}`);
+          record.on_timer = timerFromCard(card, "on");
+          record.off_timer = timerFromCard(card, "off");
+          await sendCommand("ac_timer_table", {records, ac_count: records.length || 4});
+        }
+        setTimeout(refresh, 300);
+      } catch (err) {
+        setStatus({ok: false, error: err.message});
+      } finally {
+        setTimeout(() => {
+          button.disabled = false;
+          button.textContent = previous;
           refresh();
         }, 900);
       }

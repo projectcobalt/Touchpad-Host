@@ -52,6 +52,8 @@ def _build_command_spec(action: str, data: dict[str, Any]) -> commands.CommandSp
             hour = _optional_int(data, "hour")
             minute = _optional_int(data, "minute")
             return commands.ac_timer_command(_int(data, "ac"), hour=hour, minute=minute)
+        if action == "ac_timer_table":
+            return commands.ac_timer_table_command(_record_list(data, "records"), ac_count=_optional_int(data, "ac_count") or 4)
         if action == "group_name":
             return commands.group_name_command(_int(data, "group"), _str(data, "name"))
         if action == "preference":
@@ -98,6 +100,20 @@ def _build_command_spec(action: str, data: dict[str, Any]) -> commands.CommandSp
                 show_outside_temp=_optional_bool(data, "show_outside_temp") or False,
                 lock_to_temp_control=_optional_bool(data, "lock_to_temp_control") or False,
                 show_control_sensor=_optional_bool(data, "show_control_sensor") or False,
+            )
+        if action == "ac_base_info":
+            return commands.ac_base_info_command(
+                _record_list(data, "records"),
+                one_duct_system=_optional_bool(data, "one_duct_system") or False,
+                ac_count=_optional_int(data, "ac_count"),
+            )
+        if action == "ac_setting_new":
+            return commands.ac_setting_new_command(_record_list(data, "records"))
+        if action == "program_define_new":
+            return commands.program_define_new_command(
+                _record_list(data, "records"),
+                program_count=_optional_int(data, "program_count"),
+                linked_ac=_optional_bool(data, "linked_ac") or False,
             )
         if action == "grouping":
             return commands.grouping_command(
@@ -188,6 +204,15 @@ def _int_list(data: dict[str, Any], key: str) -> list[int]:
     if not isinstance(value, list):
         raise CommandRequestError(f"{key} must be a list")
     return [int(item, 0) if isinstance(item, str) else int(item) for item in value]
+
+
+def _record_list(data: dict[str, Any], key: str) -> list[dict[str, Any]]:
+    if key not in data:
+        raise CommandRequestError(f"missing required field: {key}")
+    value = data[key]
+    if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
+        raise CommandRequestError(f"{key} must be a list of objects")
+    return value
 
 
 def _has_any(data: dict[str, Any], keys: tuple[str, ...]) -> bool:

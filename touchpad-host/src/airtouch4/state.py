@@ -90,8 +90,14 @@ class AirTouchState:
         elif kind == "favourite":
             for record in decoded.get("records", []):
                 self._merge(self.favourites, record.get("favourite"), record)
+        elif kind == "active_favourite":
+            self.system["active_favourite"] = decoded.get("active_favourite")
+            for record in decoded.get("names", []):
+                self._merge(self.favourites, record.get("favourite"), {"name": record.get("name"), "name_record": record})
         elif kind == "program_define_new":
             self.system["program_count"] = decoded.get("program_count")
+            self.system["programs_linked_ac"] = decoded.get("linked_ac")
+            self.system["program_record_len"] = decoded.get("record_len")
             for record in decoded.get("records", []):
                 self._merge(self.programs, record.get("program"), record)
         elif kind == "service":

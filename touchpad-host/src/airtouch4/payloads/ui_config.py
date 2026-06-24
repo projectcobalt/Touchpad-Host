@@ -329,17 +329,30 @@ def decode_setting_data(payload: bytes) -> dict[str, Any]:
 
 def decode_ac_timer(payload: bytes) -> dict[str, Any]:
     records = []
-    for offset in range(0, len(payload) - 1, 2):
-        records.append({
-            "ac": offset // 2,
-            "timer": decode_timer(payload[offset], payload[offset + 1]),
-            "raw": hex_bytes(payload[offset:offset + 2]),
-        })
+    if len(payload) >= 8 and len(payload) % 8 == 0:
+        for offset in range(0, len(payload), 8):
+            rec = payload[offset:offset + 8]
+            records.append({
+                "ac": offset // 8,
+                "on_timer": decode_timer(rec[0], rec[1]),
+                "off_timer": decode_timer(rec[2], rec[3]),
+                "reserved": hex_bytes(rec[4:8]),
+                "raw": hex_bytes(rec),
+            })
+        consumed = len(records) * 8
+    else:
+        for offset in range(0, len(payload) - 1, 2):
+            records.append({
+                "ac": offset // 2,
+                "timer": decode_timer(payload[offset], payload[offset + 1]),
+                "raw": hex_bytes(payload[offset:offset + 2]),
+            })
+        consumed = len(records) * 2
     return {
         "type": "ac_timer",
         "record_count": len(records),
         "records": records,
-        "trailing": hex_bytes(payload[len(records) * 2:]),
+        "trailing": hex_bytes(payload[consumed:]),
     }
 
 

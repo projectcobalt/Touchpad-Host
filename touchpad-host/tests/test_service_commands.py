@@ -62,6 +62,59 @@ class ServiceCommandTests(unittest.TestCase):
         self.assertEqual(spec.command, 0x6A)
         self.assertEqual(spec.payload[22:], bytes.fromhex("87 06 01 6D 00 01 E2 40"))
 
+    def test_build_ac_base_info_transaction(self) -> None:
+        spec = build_transaction(
+            "ac_base_info",
+            {
+                "one_duct_system": True,
+                "records": [{"ac": 0, "group_start": 0, "group_count": 8, "brand": 0x1200, "name": "Home"}],
+            },
+        )
+
+        self.assertEqual(spec.command, 0x74)
+        self.assertEqual(spec.payload.hex(" ").upper(), "01 01 00 80 12 00 48 6F 6D 65 00 00 00 00")
+
+    def test_build_ac_timer_table_transaction(self) -> None:
+        spec = build_transaction(
+            "ac_timer_table",
+            {
+                "ac_count": 1,
+                "records": [
+                    {
+                        "ac": 0,
+                        "on_timer": {"enabled": True, "hour": 6, "minute": 15},
+                        "off_timer": {"enabled": False, "hour": 22, "minute": 45},
+                    }
+                ],
+            },
+        )
+
+        self.assertEqual(spec.command, 0x36)
+        self.assertEqual(spec.payload[:8].hex(" ").upper(), "06 0F 96 2D 00 00 00 00")
+
+    def test_build_program_define_transaction(self) -> None:
+        spec = build_transaction(
+            "program_define_new",
+            {
+                "program_count": 1,
+                "linked_ac": True,
+                "records": [
+                    {
+                        "program": 0,
+                        "enabled": True,
+                        "name": "Weekday",
+                        "days_bitmap": 0x3E,
+                        "on_timer": {"enabled": True, "hour": 7, "minute": 0},
+                        "off_timer": {"enabled": True, "hour": 18, "minute": 30},
+                    }
+                ],
+            },
+        )
+
+        self.assertEqual(spec.command, 0x3C)
+        self.assertEqual(len(spec.payload), 260)
+        self.assertEqual(spec.payload[0:4].hex(" ").upper(), "01 01 00 20")
+
     def test_rejects_unknown_action(self) -> None:
         with self.assertRaises(CommandRequestError):
             build_transaction("bogus", {})
