@@ -156,7 +156,7 @@ INDEX_HTML = """<!doctype html>
       padding: 11px;
       background: #fff;
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: auto 1fr auto auto;
       gap: 10px;
     }
     .group-tile.on {
@@ -225,6 +225,34 @@ INDEX_HTML = """<!doctype html>
       gap: 6px;
       min-height: 24px;
       align-items: center;
+    }
+    .tile-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+      min-height: 34px;
+    }
+    button {
+      min-height: 32px;
+      border: 1px solid var(--accent);
+      border-radius: 5px;
+      padding: 5px 12px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(.95); }
+    button:disabled {
+      cursor: progress;
+      opacity: .62;
+    }
+    button.secondary {
+      border-color: var(--line);
+      background: #fff;
+      color: var(--ink);
     }
     table {
       width: 100%;
@@ -366,6 +394,8 @@ INDEX_HTML = """<!doctype html>
       return fans[value] || text(value);
     }
 
+    const pendingGroups = new Set();
+
     function setStatus(health) {
       const el = $("status");
       el.className = "status " + (health.ok ? "ok" : "bad");
@@ -397,6 +427,7 @@ INDEX_HTML = """<!doctype html>
       const power = status.power_name || (status.power_code === 1 ? "on" : "off");
       const isOn = power === "on";
       const isSpill = group.spill_configured || status.spill_on;
+      const pending = pendingGroups.has(String(id));
       const classes = ["group-tile"];
       if (isOn) classes.push("on");
       if (isSpill) classes.push("spill");
@@ -430,6 +461,16 @@ INDEX_HTML = """<!doctype html>
             </div>
           </div>
           <div class="tile-foot">${badges.join("")}</div>
+          <div class="tile-actions">
+            <button
+              type="button"
+              class="${isOn ? "secondary" : ""}"
+              data-action="group-power"
+              data-group="${escapeHtml(id)}"
+              data-on="${isOn ? "false" : "true"}"
+              ${pending ? "disabled" : ""}
+            >${escapeHtml(pending ? "Sending" : (isOn ? "Off" : "On"))}</button>
+          </div>
         </article>`;
     }
 
@@ -487,6 +528,42 @@ INDEX_HTML = """<!doctype html>
         event.message || (event.transaction && event.transaction.name) || ""
       ])).join("") || row(["-", "-", "No events yet"]);
     }
+
+    async function sendCommand(action, data) {
+      const response = await fetch(apiPath("command"), {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({action, data})
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail || `Command failed: ${response.status}`);
+      }
+      return response.json();
+    }
+
+    $("groups").addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-action='group-power']");
+      if (!button) return;
+      const group = button.dataset.group;
+      pendingGroups.add(group);
+      button.disabled = true;
+      button.textContent = "Sending";
+      try {
+        await sendCommand("group_power", {
+          group: Number(group),
+          on: button.dataset.on === "true"
+        });
+        setTimeout(refresh, 300);
+      } catch (err) {
+        setStatus({ok: false, error: err.message});
+      } finally {
+        setTimeout(() => {
+          pendingGroups.delete(group);
+          refresh();
+        }, 900);
+      }
+    });
 
     async function refresh() {
       try {

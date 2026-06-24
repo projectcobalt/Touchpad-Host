@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.7
+
+- Add group tile power controls backed by the runtime command API.
+- Keep the group view bound to the live `active_groups` state snapshot.
+
 ## 0.1.6
 
 - Remove explicit root `ingress_entry`; the Supervisor default is already `/`

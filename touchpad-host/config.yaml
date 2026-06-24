@@ -1,5 +1,5 @@
 name: AirTouch 4 Touchpad Host
-version: "0.1.6"
+version: "0.1.7"
 slug: airtouch4_touchpad_host
 description: Python host for the AirTouch 4 internal RS485 touchpad protocol.
 arch:
