@@ -35,6 +35,19 @@ def decode_preference(payload: bytes) -> dict[str, Any]:
             "address_or_location": payload[18],
             "version_or_flags": hex_bytes(payload[19:23]),
         })
+    elif len(payload) >= 19:
+        flags_16 = payload[16]
+        flags_17 = payload[17]
+        flags_18 = payload[18]
+        result.update({
+            "show_ac_errors": bit(flags_16, 0x20),
+            "show_outside_temp": bit(flags_16, 0x08),
+            "show_control_sensor": bit(flags_16, 0x04),
+            "use_fahrenheit": bit(flags_17, 0x80),
+            "location": flags_17 & 0x7F,
+            "screensaver_enabled": bit(flags_18, 0x80),
+            "screensaver_timeout": flags_18 & 0x7F,
+        })
     else:
         result["tail"] = hex_bytes(payload[16:])
     return result
@@ -177,6 +190,18 @@ def decode_service(payload: bytes) -> dict[str, Any]:
             "phone": ascii_field(payload[10:22]),
             "tail": hex_bytes(payload[22:]),
         })
+        if len(payload) >= 30:
+            flags = payload[22]
+            result.update({
+                "show_service_due": bit(flags, 0x80),
+                "service_due_locked": bit(flags, 0x01),
+                "filter_clean_due": bit(flags, 0x02),
+                "maintenance_due": bit(flags, 0x04),
+                "months": payload[23],
+                "days": u16be(payload, 24),
+                "runtime_hours": int.from_bytes(payload[26:30], "big"),
+                "tail": hex_bytes(payload[30:]),
+            })
     else:
         result["ascii"] = ascii_field(payload)
     return result

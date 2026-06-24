@@ -150,7 +150,7 @@ INDEX_HTML = """<!doctype html>
     .theme-stack {
       display: grid;
       gap: 5px;
-      justify-items: stretch;
+      justify-items: end;
     }
     .weather-chip {
       display: none;
@@ -165,6 +165,13 @@ INDEX_HTML = """<!doctype html>
       white-space: nowrap;
     }
     .weather-chip.active { display: block; }
+    .chip-label {
+      margin-right: 6px;
+      color: rgba(255,255,255,.72);
+      font-size: 11px;
+      font-weight: 760;
+      text-transform: uppercase;
+    }
     .nav button {
       min-height: 34px;
       border-color: rgba(255,255,255,.24);
@@ -178,10 +185,15 @@ INDEX_HTML = """<!doctype html>
       box-shadow: inset 0 -3px 0 rgba(255,255,255,.35);
     }
     .theme-toggle {
-      min-width: 92px;
+      width: 38px;
+      min-width: 38px;
+      height: 38px;
+      padding: 0;
       border-color: rgba(255,255,255,.24);
       background: rgba(255,255,255,.08);
       color: #fff;
+      font-size: 18px;
+      line-height: 1;
     }
     .view { display: none; }
     .view.active { display: grid; gap: 14px; }
@@ -323,13 +335,13 @@ INDEX_HTML = """<!doctype html>
       gap: 8px;
     }
     .group-tile {
-      min-height: 112px;
+      min-height: 108px;
       border: 1px solid var(--line);
       border-radius: 6px;
       padding: 10px;
       background: var(--panel);
       display: grid;
-      grid-template-columns: minmax(150px, .62fr) auto minmax(230px, 1fr) auto;
+      grid-template-columns: minmax(136px, .58fr) 44px minmax(240px, 1fr) minmax(112px, auto);
       gap: 10px;
       align-items: center;
     }
@@ -370,7 +382,7 @@ INDEX_HTML = """<!doctype html>
     }
     .group-body {
       display: grid;
-      grid-template-columns: minmax(96px, 1fr) minmax(96px, 1fr) minmax(150px, 1.45fr);
+      grid-template-columns: minmax(82px, .75fr) minmax(82px, .75fr) minmax(128px, 1.35fr);
       gap: 8px;
       align-content: center;
       align-items: center;
@@ -381,11 +393,11 @@ INDEX_HTML = """<!doctype html>
       height: 100%;
     }
     .power-button {
-      width: 54px;
-      height: 54px;
-      min-height: 54px;
-      max-width: 54px;
-      flex: 0 0 54px;
+      width: 42px;
+      height: 42px;
+      min-height: 42px;
+      max-width: 42px;
+      flex: 0 0 42px;
       padding: 0;
       border-radius: 999px;
       display: inline-flex;
@@ -393,8 +405,18 @@ INDEX_HTML = """<!doctype html>
       justify-content: center;
       line-height: 1;
       white-space: nowrap;
-      font-size: 12px;
+      font-size: 22px;
       overflow: hidden;
+    }
+    .power-button.on {
+      background: var(--ok);
+      border-color: var(--ok);
+      color: #fff;
+    }
+    .power-button.off {
+      background: var(--panel);
+      border-color: var(--line);
+      color: var(--muted);
     }
     .group-body .big {
       font-size: 24px;
@@ -428,13 +450,14 @@ INDEX_HTML = """<!doctype html>
       align-items: center;
     }
     .tile-actions {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(48px, 1fr));
       gap: 8px;
       align-items: center;
-      justify-content: flex-end;
-      min-width: 128px;
+      min-width: 112px;
     }
+    .tile-actions button { padding-inline: 8px; }
+    .tile-actions .wide-action { grid-column: 1 / -1; }
     .pill {
       display: inline-flex;
       align-items: center;
@@ -600,20 +623,32 @@ INDEX_HTML = """<!doctype html>
         grid-template-columns: 1fr;
       }
       .group-tile {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: minmax(128px, .58fr) 44px minmax(210px, 1fr);
       }
       .group-body {
-        grid-template-columns: 1fr 1fr minmax(160px, 1.2fr);
+        grid-template-columns: minmax(82px, .75fr) minmax(82px, .75fr) minmax(128px, 1.35fr);
       }
+      .tile-actions { grid-column: 3; }
     }
     @media (max-width: 620px) {
       header { grid-template-columns: 1fr; }
       main { padding: 10px; gap: 10px; }
       section { padding: 10px; }
+      .group-tile {
+        grid-template-columns: minmax(0, 1fr) 42px;
+        align-items: start;
+      }
       .ac-temp,
       .ac-controls,
       .group-body {
         grid-template-columns: 1fr 1fr;
+      }
+      .group-body,
+      .tile-actions {
+        grid-column: 1 / -1;
+      }
+      .tile-actions {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
       }
       .damper { grid-column: 1 / -1; }
       .groups-board { grid-template-columns: 1fr; }
@@ -628,6 +663,7 @@ INDEX_HTML = """<!doctype html>
       <div class="theme-stack">
         <button type="button" id="theme-toggle" class="theme-toggle">Theme</button>
         <div id="weather-chip" class="weather-chip"></div>
+        <div id="indoor-chip" class="weather-chip"></div>
       </div>
     </div>
     <nav class="nav" aria-label="Primary">
@@ -796,6 +832,7 @@ INDEX_HTML = """<!doctype html>
     const pendingFavourites = new Set();
     const THEME_KEY = "airtouch4.uiTheme";
     const themeLabels = {system: "System", light: "Light", dark: "Dark"};
+    const themeIcons = {system: "&#128187;", light: "&#9728;", dark: "&#9790;"};
     let selectedAc = 0;
     let zonePage = 0;
     let configuredTheme = "system";
@@ -849,7 +886,10 @@ INDEX_HTML = """<!doctype html>
 
     function applyTheme() {
       document.body.dataset.theme = themeToApply();
-      $("theme-toggle").textContent = themeLabels[selectedTheme] || "Theme";
+      const toggle = $("theme-toggle");
+      toggle.innerHTML = themeIcons[selectedTheme] || "&#128187;";
+      toggle.title = `${themeLabels[selectedTheme] || "System"} theme`;
+      toggle.setAttribute("aria-label", toggle.title);
     }
 
     function modeName(value) {
@@ -880,14 +920,33 @@ INDEX_HTML = """<!doctype html>
       return "AirTouch 4";
     }
 
-    function collectAlerts(controller, state) {
+    function collectAlerts(controller, state, integrations, transactions) {
       const alerts = [];
-      if (controller.error) alerts.push(controller.error);
+      if (controller.error) alerts.push(describeControllerError(controller.error));
+      const controllerStatus = text(controller.status, "");
+      if (controllerStatus && !["running", "starting", "stopped"].includes(controllerStatus) && !controller.error) {
+        alerts.push(`Runtime status: ${controllerStatus}`);
+      }
+      const weatherError = integrations && integrations.weather && integrations.weather.error;
+      if (weatherError) alerts.push(`Outside weather: ${describeControllerError(weatherError)}`);
+      const indoorError = integrations && integrations.indoor && integrations.indoor.error;
+      if (indoorError) alerts.push(`Indoor climate: ${describeControllerError(indoorError)}`);
+      const mqtt = integrations && integrations.mqtt;
+      if (mqtt && mqtt.enabled && mqtt.error) alerts.push(`MQTT: ${describeControllerError(mqtt.error)}`);
+      if (mqtt && mqtt.enabled && Number(mqtt.failed_publish_count) > 0) {
+        alerts.push(`MQTT publish failures: ${mqtt.failed_publish_count}`);
+      }
+      const errorResolver = integrations && integrations.error_resolver;
+      if (errorResolver && errorResolver.enabled && errorResolver.last_error) {
+        alerts.push(`Error lookup: ${describeControllerError(errorResolver.last_error)}`);
+      }
+      const failedTransactions = transactions && Array.isArray(transactions.failed) ? transactions.failed.length : 0;
+      if (failedTransactions > 0) alerts.push(`Bus transactions failed: ${failedTransactions}`);
       Object.entries(state.acs || {}).forEach(([id, ac]) => {
         const status = ac.status || {};
         if (status.error_code && status.error_code !== 0) {
           const name = (ac.base || {}).name || `AC ${Number(id) + 1}`;
-          alerts.push(`${name} error ${status.error_code}`);
+          alerts.push(`${name}: ${describeAcFault(status.error_code, status.error_display)}`);
         }
       });
       const dialog = state.system && state.system.dialog_message;
@@ -896,6 +955,25 @@ INDEX_HTML = """<!doctype html>
         else if (dialog.message_id !== undefined) alerts.push(`Dialog ${dialog.message_id}`);
       }
       return [...new Set(alerts.filter(Boolean))];
+    }
+
+    function describeControllerError(error) {
+      const message = text(error);
+      if (/ConnectionRefusedError|ECONNREFUSED/i.test(message)) return `Runtime connection refused: ${message}`;
+      if (/TimeoutError|timed out/i.test(message)) return `Runtime timeout: ${message}`;
+      if (/SerialException|could not open port/i.test(message)) return `Serial transport error: ${message}`;
+      if (/mqtt/i.test(message)) return `MQTT error: ${message}`;
+      return message;
+    }
+
+    function describeAcFault(code, display) {
+      if (display && display.label) {
+        return display.description ? `${display.label}: ${display.description}` : display.label;
+      }
+      const number = Number(code);
+      if (number === 65534) return "Code: FFFE: Error in the communication of the gateway with the main module.";
+      if (number === 65535) return "Code: FFFF: Error in the communication of the gateway with the AC unit.";
+      return `Code: ${Number.isFinite(number) ? number : text(code)}`;
     }
 
     function renderAlerts(alerts) {
@@ -917,11 +995,53 @@ INDEX_HTML = """<!doctype html>
       const tempText = weather.temperature === undefined || weather.temperature === null ? "" : `${weather.temperature} ${unit}`;
       const humidityText = weather.humidity === undefined || weather.humidity === null ? "" : `${weather.humidity}%`;
       const icon = weatherIcon(weather.state);
-      chip.textContent = [icon, tempText, humidityText].filter(Boolean).join(" ");
+      chip.innerHTML = [
+        '<span class="chip-label">Outside</span>',
+        `<span>${icon}</span>`,
+        tempText ? `<span>${escapeHtml(tempText)}</span>` : "",
+        humidityText ? `<span>${escapeHtml(humidityText)}</span>` : ""
+      ].filter(Boolean).join(" ");
+      chip.classList.add("active");
+    }
+
+    function renderIndoor(integrations) {
+      const chip = $("indoor-chip");
+      const indoor = integrations && integrations.indoor && integrations.indoor.state;
+      if (!indoor || (indoor.temperature === null && indoor.temperature === undefined && indoor.humidity === null && indoor.humidity === undefined)) {
+        chip.classList.remove("active");
+        chip.textContent = "";
+        return;
+      }
+      const tempUnit = indoor.temperature_unit || "C";
+      const humidityUnit = indoor.humidity_unit || "%";
+      const tempText = indoor.temperature === undefined || indoor.temperature === null ? "" : `${indoor.temperature} ${tempUnit}`;
+      const humidityText = indoor.humidity === undefined || indoor.humidity === null ? "" : `${indoor.humidity} ${humidityUnit}`;
+      chip.innerHTML = [
+        '<span class="chip-label">Indoor</span>',
+        tempText ? `<span>${escapeHtml(tempText)}</span>` : "",
+        humidityText ? `<span>${escapeHtml(humidityText)}</span>` : ""
+      ].filter(Boolean).join(" ");
       chip.classList.add("active");
     }
 
     function weatherIcon(condition) {
+      const safeIcons = {
+        "clear-night": "&#9790;",
+        "cloudy": "&#9729;",
+        "fog": "&#8779;",
+        "hail": "&#9671;",
+        "lightning": "&#9889;",
+        "lightning-rainy": "&#9889;",
+        "partlycloudy": "&#9680;",
+        "pouring": "&#9730;",
+        "rainy": "&#9730;",
+        "snowy": "&#10052;",
+        "snowy-rainy": "&#10052;",
+        "sunny": "&#9728;",
+        "windy": "&#8776;",
+        "windy-variant": "&#8776;"
+      };
+      return safeIcons[String(condition || "").toLowerCase()] || "&#9675;";
       const icons = {
         "clear-night": "☾",
         "cloudy": "☁",
@@ -1112,6 +1232,19 @@ INDEX_HTML = """<!doctype html>
             </div>
             <div class="tile-foot">${badges.join("")}</div>
           </div>
+          <button
+            type="button"
+            class="power-button ${isOn ? "on" : "off"}"
+            data-action="group-power"
+            data-group="${escapeHtml(id)}"
+            data-on="${isOn ? "false" : "true"}"
+            data-sensor-control="${sensorControl ? "true" : "false"}"
+            data-setpoint="${escapeHtml(status.setpoint ?? "")}"
+            data-percentage="${escapeHtml(status.percentage ?? "")}"
+            aria-label="${escapeHtml(isOn ? "Turn zone off" : "Turn zone on")}"
+            title="${escapeHtml(isOn ? "Turn zone off" : "Turn zone on")}"
+            ${pending ? "disabled" : ""}
+          >${pending ? "..." : "⏻"}</button>
           <div class="group-body">
             <div class="reading">
               <div class="label">Room</div>
@@ -1129,21 +1262,8 @@ INDEX_HTML = """<!doctype html>
             </div>
           </div>
           <div class="tile-actions">
-            <button
-              type="button"
-              class="power-button ${isOn ? "secondary" : ""}"
-              data-action="group-power"
-              data-group="${escapeHtml(id)}"
-              data-on="${isOn ? "false" : "true"}"
-              data-sensor-control="${sensorControl ? "true" : "false"}"
-              data-setpoint="${escapeHtml(status.setpoint ?? "")}"
-              data-percentage="${escapeHtml(status.percentage ?? "")}"
-              ${pending ? "disabled" : ""}
-            >${escapeHtml(pending ? "..." : "Power")}</button>
-          </div>
-          <div class="tile-actions">
             ${valueButtons}
-            ${status.turbo_supported ? `<button type="button" class="secondary" data-action="group-turbo" data-group="${escapeHtml(id)}" data-sensor-control="${sensorControl ? "true" : "false"}" data-setpoint="${escapeHtml(status.setpoint ?? "")}" data-percentage="${escapeHtml(status.percentage ?? "")}" ${pending || !isOn ? "disabled" : ""}>Turbo</button>` : ""}
+            ${status.turbo_supported ? `<button type="button" class="secondary wide-action" data-action="group-turbo" data-group="${escapeHtml(id)}" data-sensor-control="${sensorControl ? "true" : "false"}" data-setpoint="${escapeHtml(status.setpoint ?? "")}" data-percentage="${escapeHtml(status.percentage ?? "")}" ${pending || !isOn ? "disabled" : ""}>Turbo</button>` : ""}
           </div>
         </article>`;
     }
@@ -1314,8 +1434,9 @@ INDEX_HTML = """<!doctype html>
       configuredTheme = config.ui_theme || "system";
       applyTheme();
       $("app-title").textContent = detectAirTouchModel(state);
-      renderAlerts(collectAlerts(controller, state));
+      renderAlerts(collectAlerts(controller, state, integrations, transactions));
       renderWeather(integrations);
+      renderIndoor(integrations);
       const acEntries = visibleAcs(state);
       if (!acEntries.some(([id]) => Number(id) === selectedAc)) selectedAc = Number(acEntries[0] && acEntries[0][0]) || 0;
 
@@ -1490,7 +1611,7 @@ INDEX_HTML = """<!doctype html>
       const group = button.dataset.group;
       pendingGroups.add(group);
       button.disabled = true;
-      button.textContent = "Sending";
+      button.textContent = button.classList.contains("power-button") ? "..." : "Sending";
       try {
         if (action === "group-power") {
           await sendCommand("group_power", {

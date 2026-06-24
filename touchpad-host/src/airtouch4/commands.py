@@ -130,6 +130,60 @@ def set_preference(system_name: str) -> bytes:
     return _ascii_fixed(system_name, 16)
 
 
+def set_preference_full(
+    system_name: str,
+    *,
+    show_ac_errors: bool = False,
+    show_outside_temp: bool = False,
+    show_control_sensor: bool = False,
+    use_fahrenheit: bool = False,
+    location: int = 0,
+    screensaver_enabled: bool = False,
+    screensaver_timeout: int = 0,
+) -> bytes:
+    flags_16 = 0x10
+    if show_ac_errors:
+        flags_16 |= 0x20
+    if show_outside_temp:
+        flags_16 |= 0x08
+    if show_control_sensor:
+        flags_16 |= 0x04
+    byte_17 = _check_range("location", location, 0, 127)
+    if use_fahrenheit:
+        byte_17 |= 0x80
+    byte_18 = _check_range("screensaver_timeout", screensaver_timeout, 0, 127)
+    if screensaver_enabled:
+        byte_18 |= 0x80
+    return _ascii_fixed(system_name, 16) + bytes((flags_16, byte_17, byte_18))
+
+
+def set_parameters(
+    group_count: int,
+    *,
+    damper_rpm: int,
+    touchpad_1_location: int,
+    touchpad_2_location: int,
+    ac_button_blocked: bool = False,
+    show_outside_temp: bool = False,
+    lock_to_temp_control: bool = False,
+    show_control_sensor: bool = False,
+) -> bytes:
+    flags = 0x80 if ac_button_blocked else 0x00
+    if show_outside_temp:
+        flags |= 0x01
+    if lock_to_temp_control:
+        flags |= 0x02
+    if show_control_sensor:
+        flags |= 0x04
+    return bytes((
+        _check_range("group_count", group_count, 1, 16) - 1,
+        _check_range("damper_rpm", damper_rpm, 0, 255),
+        _check_range("touchpad_1_location", touchpad_1_location, 0, 255),
+        _check_range("touchpad_2_location", touchpad_2_location, 0, 255),
+        flags,
+    ))
+
+
 def set_timer(hour: int | None, minute: int | None) -> bytes:
     if hour is None or minute is None:
         return b"\x80\x00"
@@ -147,8 +201,36 @@ def set_password_info(page: int, payload: bytes) -> bytes:
     return bytes((_check_range("page", page, 1, 2),)) + bytes(payload)
 
 
-def set_service(company: str, phone: str, tail: bytes = b"") -> bytes:
-    return _ascii_fixed(company, 10) + _ascii_fixed(phone, 12) + bytes(tail)
+def set_service(
+    company: str,
+    phone: str,
+    *,
+    show_service_due: bool = False,
+    service_due_locked: bool = False,
+    filter_clean_due: bool = False,
+    maintenance_due: bool = False,
+    months: int = 0,
+    days: int = 0,
+    runtime_hours: int = 0,
+    tail: bytes = b"",
+) -> bytes:
+    payload = bytearray(30)
+    payload[0:10] = _ascii_fixed(company, 10)
+    payload[10:22] = _ascii_fixed(phone, 12)
+    if show_service_due:
+        payload[22] |= 0x80
+    if service_due_locked:
+        payload[22] |= 0x01
+    if filter_clean_due:
+        payload[22] |= 0x02
+    if maintenance_due:
+        payload[22] |= 0x04
+    payload[23] = _check_range("months", months, 0, 255)
+    payload[24:26] = _check_range("days", days, 0, 65535).to_bytes(2, "big")
+    payload[26:30] = _check_range("runtime_hours", runtime_hours, 0, 0xFFFFFFFF).to_bytes(4, "big")
+    if tail:
+        payload.extend(tail)
+    return bytes(payload)
 
 
 def clear_notification(notification: int = 0) -> bytes:
@@ -217,6 +299,14 @@ def preference_command(system_name: str) -> CommandSpec:
     return CommandSpec(0x54, set_preference(system_name))
 
 
+def preference_full_command(system_name: str, **kwargs: bool | int) -> CommandSpec:
+    return CommandSpec(0x54, set_preference_full(system_name, **kwargs))
+
+
+def parameters_command(group_count: int, **kwargs: int | bool) -> CommandSpec:
+    return CommandSpec(0x60, set_parameters(group_count, **kwargs))
+
+
 def datetime_command(**kwargs: int) -> CommandSpec:
     return CommandSpec(0x40, set_datetime(**kwargs))
 
@@ -229,8 +319,8 @@ def spill_command(ac_spill_types: list[int] | tuple[int, ...], spill_groups: lis
     return CommandSpec(0x68, set_spill(ac_spill_types, spill_groups))
 
 
-def service_command(company: str, phone: str, tail: bytes = b"") -> CommandSpec:
-    return CommandSpec(0x6A, set_service(company, phone, tail))
+def service_command(company: str, phone: str, **kwargs: bool | int | bytes) -> CommandSpec:
+    return CommandSpec(0x6A, set_service(company, phone, **kwargs))
 
 
 def password_info_command(page: int, payload: bytes) -> CommandSpec:

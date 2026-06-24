@@ -16,6 +16,7 @@ from ..live_log import JsonlBusLogger
 from ..runtime import AirTouchRuntime, RuntimeConfig, RuntimeEvent, TransportLike
 from ..session.queue import TransactionSpec
 from ..transport import SerialConfig, SerialRs485Transport, TcpSerialConfig, TcpSerialTransport
+from .error_resolver import RemoteErrorResolver, RemoteErrorResolverConfig
 from .ha_client import HomeAssistantApiClient, HomeAssistantApiConfig
 from .mqtt import MqttConfig, MqttStatePublisher
 
@@ -39,6 +40,7 @@ class RuntimeControllerConfig:
     weather: HomeAssistantApiConfig = HomeAssistantApiConfig()
     weather_poll_interval: float = 60.0
     mqtt: MqttConfig = MqttConfig()
+    error_resolver: RemoteErrorResolverConfig = RemoteErrorResolverConfig()
 
 
 class RuntimeController:
@@ -62,10 +64,13 @@ class RuntimeController:
         self._error: str | None = None
         self._weather: dict[str, Any] | None = None
         self._weather_error: str | None = None
+        self._indoor: dict[str, Any] | None = None
+        self._indoor_error: str | None = None
         self._next_weather_poll = 0.0
         self._next_mqtt_publish = 0.0
         self._ha_client = HomeAssistantApiClient(config.weather)
         self._mqtt = MqttStatePublisher(config.mqtt)
+        self._error_resolver = RemoteErrorResolver(config.error_resolver)
 
     def start(self) -> None:
         with self._lock:
@@ -92,6 +97,8 @@ class RuntimeController:
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
             runtime_snapshot = None if self._runtime is None else self._runtime.snapshot()
+            if runtime_snapshot is not None:
+                _add_error_displays(runtime_snapshot, self._error_resolver)
             return {
                 "controller": {
                     "status": self._status,
@@ -106,7 +113,14 @@ class RuntimeController:
                         "state": self._weather,
                         "error": self._weather_error,
                     },
+                    "indoor": {
+                        "temperature_entity_id": self.config.weather.indoor_temperature_entity,
+                        "humidity_entity_id": self.config.weather.indoor_humidity_entity,
+                        "state": self._indoor,
+                        "error": self._indoor_error,
+                    },
                     "mqtt": self._mqtt.status(),
+                    "error_resolver": self._error_resolver.status(),
                 },
             }
 
@@ -139,6 +153,8 @@ class RuntimeController:
             "bus_log": str(self.config.bus_log) if self.config.bus_log is not None else None,
             "ui_theme": self.config.ui_theme,
             "weather_entity": self.config.weather.weather_entity,
+            "indoor_temperature_entity": self.config.weather.indoor_temperature_entity,
+            "indoor_humidity_entity": self.config.weather.indoor_humidity_entity,
             "weather_poll_interval": self.config.weather_poll_interval,
             "mqtt_enabled": self.config.mqtt.enabled,
             "mqtt_host": self.config.mqtt.broker_host if self.config.mqtt.enabled else "",
@@ -147,6 +163,12 @@ class RuntimeController:
             "mqtt_discovery_prefix": self.config.mqtt.discovery_prefix,
             "mqtt_topic_prefix": self.config.mqtt.topic_prefix,
             "mqtt_publish_interval": self.config.mqtt.publish_interval,
+            "remote_error_resolution": self.config.error_resolver.enabled,
+            "remote_error_cache": (
+                str(self.config.error_resolver.cache_path)
+                if self.config.error_resolver.cache_path is not None
+                else None
+            ),
         }
 
     def _run(self) -> None:
@@ -175,6 +197,7 @@ class RuntimeController:
         with self._lock:
             self._status = "stopped"
         self._mqtt.stop()
+        self._error_resolver.stop()
 
     def _drain_commands(self, runtime: AirTouchRuntime) -> None:
         specs = []
@@ -214,21 +237,43 @@ class RuntimeController:
             })
 
     def _poll_weather(self) -> None:
-        entity = self.config.weather.weather_entity.strip()
-        if not entity:
+        weather_entity = self.config.weather.weather_entity.strip()
+        indoor_configured = (
+            bool(self.config.weather.indoor_temperature_entity.strip())
+            or bool(self.config.weather.indoor_humidity_entity.strip())
+        )
+        if not weather_entity and not indoor_configured:
             return
         now = time.monotonic()
         if now < self._next_weather_poll:
             return
         self._next_weather_poll = now + max(10.0, self.config.weather_poll_interval)
-        try:
-            weather = self._ha_client.weather_snapshot()
+        if weather_entity:
+            try:
+                weather = self._ha_client.weather_snapshot()
+                with self._lock:
+                    self._weather = weather
+                    self._weather_error = None
+            except Exception as exc:  # pragma: no cover - live HA API path
+                with self._lock:
+                    self._weather_error = f"{type(exc).__name__}: {exc}"
+        else:
             with self._lock:
-                self._weather = weather
+                self._weather = None
                 self._weather_error = None
-        except Exception as exc:  # pragma: no cover - live HA API path
+        if indoor_configured:
+            try:
+                indoor = self._ha_client.indoor_snapshot()
+                with self._lock:
+                    self._indoor = indoor
+                    self._indoor_error = None
+            except Exception as exc:  # pragma: no cover - live HA API path
+                with self._lock:
+                    self._indoor_error = f"{type(exc).__name__}: {exc}"
+        else:
             with self._lock:
-                self._weather_error = f"{type(exc).__name__}: {exc}"
+                self._indoor = None
+                self._indoor_error = None
 
     def _publish_mqtt(self) -> None:
         if not self.config.mqtt.enabled:
@@ -273,6 +318,20 @@ def _event_record(event: RuntimeEvent) -> dict[str, Any]:
     if event.transaction is not None:
         record["transaction"] = event.transaction.to_record()
     return record
+
+
+def _add_error_displays(runtime_snapshot: dict[str, Any], resolver: RemoteErrorResolver) -> None:
+    state = runtime_snapshot.get("state") or {}
+    for ac in (state.get("acs") or {}).values():
+        if not isinstance(ac, dict):
+            continue
+        status = ac.get("status") or {}
+        base = ac.get("base") or {}
+        if not isinstance(status, dict) or not isinstance(base, dict):
+            continue
+        error = resolver.describe(base.get("brand"), status.get("error_code"))
+        if error is not None:
+            status["error_display"] = error
 
 
 def _frame_log_line(direction: str, event: RuntimeEvent) -> str:

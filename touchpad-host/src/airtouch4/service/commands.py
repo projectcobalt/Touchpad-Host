@@ -55,9 +55,50 @@ def _build_command_spec(action: str, data: dict[str, Any]) -> commands.CommandSp
         if action == "group_name":
             return commands.group_name_command(_int(data, "group"), _str(data, "name"))
         if action == "preference":
+            if _has_any(data, (
+                "show_ac_errors",
+                "show_outside_temp",
+                "show_control_sensor",
+                "use_fahrenheit",
+                "location",
+                "screensaver_enabled",
+                "screensaver_timeout",
+            )):
+                return commands.preference_full_command(
+                    _str(data, "system_name"),
+                    show_ac_errors=_optional_bool(data, "show_ac_errors") or False,
+                    show_outside_temp=_optional_bool(data, "show_outside_temp") or False,
+                    show_control_sensor=_optional_bool(data, "show_control_sensor") or False,
+                    use_fahrenheit=_optional_bool(data, "use_fahrenheit") or False,
+                    location=_optional_int(data, "location") or 0,
+                    screensaver_enabled=_optional_bool(data, "screensaver_enabled") or False,
+                    screensaver_timeout=_optional_int(data, "screensaver_timeout") or 0,
+                )
             return commands.preference_command(_str(data, "system_name"))
         if action == "service":
-            return commands.service_command(_str(data, "company"), _str(data, "phone"), _hex_bytes(data, "tail", default=b""))
+            return commands.service_command(
+                _str(data, "company"),
+                _str(data, "phone"),
+                show_service_due=_optional_bool(data, "show_service_due") or False,
+                service_due_locked=_optional_bool(data, "service_due_locked") or False,
+                filter_clean_due=_optional_bool(data, "filter_clean_due") or False,
+                maintenance_due=_optional_bool(data, "maintenance_due") or False,
+                months=_optional_int(data, "months") or 0,
+                days=_optional_int(data, "days") or 0,
+                runtime_hours=_optional_int(data, "runtime_hours") or 0,
+                tail=_hex_bytes(data, "tail", default=b""),
+            )
+        if action == "parameters":
+            return commands.parameters_command(
+                _int(data, "group_count"),
+                damper_rpm=_int(data, "damper_rpm"),
+                touchpad_1_location=_int(data, "touchpad_1_location"),
+                touchpad_2_location=_int(data, "touchpad_2_location"),
+                ac_button_blocked=_optional_bool(data, "ac_button_blocked") or False,
+                show_outside_temp=_optional_bool(data, "show_outside_temp") or False,
+                lock_to_temp_control=_optional_bool(data, "lock_to_temp_control") or False,
+                show_control_sensor=_optional_bool(data, "show_control_sensor") or False,
+            )
         if action == "grouping":
             return commands.grouping_command(
                 _int(data, "group"),
@@ -147,6 +188,10 @@ def _int_list(data: dict[str, Any], key: str) -> list[int]:
     if not isinstance(value, list):
         raise CommandRequestError(f"{key} must be a list")
     return [int(item, 0) if isinstance(item, str) else int(item) for item in value]
+
+
+def _has_any(data: dict[str, Any], keys: tuple[str, ...]) -> bool:
+    return any(key in data and data[key] is not None for key in keys)
 
 
 def _hex_bytes(data: dict[str, Any], key: str, *, default: bytes | None = None) -> bytes:

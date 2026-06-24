@@ -38,6 +38,8 @@ HEARTBEAT_PAYLOAD="$(config heartbeat_payload "")"
 BUS_LOG="$(config bus_log true)"
 UI_THEME="$(config ui_theme system)"
 WEATHER_ENTITY="$(config weather_entity "")"
+INDOOR_TEMPERATURE_ENTITY="$(config indoor_temperature_entity "")"
+INDOOR_HUMIDITY_ENTITY="$(config indoor_humidity_entity "")"
 WEATHER_POLL_INTERVAL="$(config weather_poll_interval 60.0)"
 MQTT_ENABLED="$(config mqtt_enabled false)"
 MQTT_HOST="$(config mqtt_host "")"
@@ -48,6 +50,10 @@ MQTT_DISCOVERY="$(config mqtt_discovery true)"
 MQTT_DISCOVERY_PREFIX="$(config mqtt_discovery_prefix homeassistant)"
 MQTT_TOPIC_PREFIX="$(config mqtt_topic_prefix airtouch4)"
 MQTT_PUBLISH_INTERVAL="$(config mqtt_publish_interval 10.0)"
+REMOTE_ERROR_RESOLUTION="$(config remote_error_resolution false)"
+REMOTE_ERROR_CACHE_DAYS="$(config remote_error_cache_days 2.0)"
+REMOTE_ERROR_DEVICE_ID="$(config remote_error_device_id "")"
+REMOTE_ERROR_SERIAL="$(config remote_error_serial "")"
 LOG_LEVEL="$(config log_level info)"
 
 case "${TRANSPORT}" in
@@ -94,6 +100,8 @@ ARGS=(
     "--heartbeat-payload" "${RESOLVED_HEARTBEAT_PAYLOAD}"
     "--ui-theme" "${UI_THEME}"
     "--weather-entity" "${WEATHER_ENTITY}"
+    "--indoor-temperature-entity" "${INDOOR_TEMPERATURE_ENTITY}"
+    "--indoor-humidity-entity" "${INDOOR_HUMIDITY_ENTITY}"
     "--weather-poll-interval" "${WEATHER_POLL_INTERVAL}"
     "--mqtt-host" "${MQTT_HOST}"
     "--mqtt-port" "${MQTT_PORT}"
@@ -102,6 +110,10 @@ ARGS=(
     "--mqtt-discovery-prefix" "${MQTT_DISCOVERY_PREFIX}"
     "--mqtt-topic-prefix" "${MQTT_TOPIC_PREFIX}"
     "--mqtt-publish-interval" "${MQTT_PUBLISH_INTERVAL}"
+    "--remote-error-cache" "/data/error-cache.json"
+    "--remote-error-cache-days" "${REMOTE_ERROR_CACHE_DAYS}"
+    "--remote-error-device-id" "${REMOTE_ERROR_DEVICE_ID}"
+    "--remote-error-serial" "${REMOTE_ERROR_SERIAL}"
     "--log-level" "${LOG_LEVEL}"
 )
 
@@ -120,6 +132,10 @@ fi
 
 if [[ "${MQTT_DISCOVERY}" != "true" ]]; then
     ARGS+=("--no-mqtt-discovery")
+fi
+
+if [[ "${REMOTE_ERROR_RESOLUTION}" == "true" ]]; then
+    ARGS+=("--remote-error-resolution")
 fi
 
 echo "Starting AirTouch 4 touchpad host with ${TRANSPORT}"
