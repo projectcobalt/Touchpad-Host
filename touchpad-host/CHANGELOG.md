@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2
+
+- Rework the ingress UI around group/zone tiles as the primary surface.
+- Show decoded group power, room temperature, setpoint, damper percentage,
+  spill, and sensor mapping state.
+- Keep AC, sensors, runtime, and activity visible as supporting panels.
+
 ## 0.1.1
 
 - Relax add-on option schema so TCP serial installs can save an empty local
