@@ -54,6 +54,10 @@ class MqttStatePublisher:
         self._connected = False
         self._error: str | None = None
         self._published_discovery: set[str] = set()
+        self._publish_count = 0
+        self._json_publish_count = 0
+        self._value_publish_count = 0
+        self._last_publish_summary: dict[str, Any] | None = None
 
     def status(self) -> dict[str, Any]:
         return {
@@ -62,6 +66,11 @@ class MqttStatePublisher:
             "host": self.config.broker_host if self.config.enabled else "",
             "port": self.config.broker_port,
             "error": self._error,
+            "publish_count": self._publish_count,
+            "discovery_count": len(self._published_discovery),
+            "json_publish_count": self._json_publish_count,
+            "value_publish_count": self._value_publish_count,
+            "last_publish": self._last_publish_summary,
         }
 
     def publish(self, snapshot: dict[str, Any]) -> None:
@@ -71,11 +80,33 @@ class MqttStatePublisher:
             return
         runtime = snapshot.get("runtime") or {}
         state = runtime.get("state") or {}
+        discovery_before = len(self._published_discovery)
+        values_before = self._value_publish_count
         self._publish_json(f"{self.config.topic_prefix}/state", snapshot)
         self._publish_availability("online")
         if self.config.discovery:
             self._publish_discovery(state)
         self._publish_entities(state)
+        self._publish_count += 1
+        active_groups = state.get("active_groups") or {}
+        summary = {
+            "acs": len(state.get("acs") or {}),
+            "groups": len(state.get("groups") or {}),
+            "active_groups": len(active_groups),
+            "discovery_added": len(self._published_discovery) - discovery_before,
+            "values_published": self._value_publish_count - values_before,
+        }
+        self._last_publish_summary = summary
+        log = LOG.info if summary["discovery_added"] or self._publish_count == 1 else LOG.debug
+        log(
+            "MQTT published state topic=%s acs=%s groups=%s active_groups=%s discovery_added=%s values=%s",
+            self.config.topic_prefix,
+            summary["acs"],
+            summary["groups"],
+            summary["active_groups"],
+            summary["discovery_added"],
+            summary["values_published"],
+        )
 
     def stop(self) -> None:
         if self._client is None:
@@ -197,11 +228,13 @@ class MqttStatePublisher:
     def _publish_json(self, topic: str, payload: dict[str, Any], *, retain: bool = False) -> None:
         if self._client is not None:
             self._client.publish(topic, json.dumps(payload, separators=(",", ":"), default=str), qos=0, retain=retain)
+            self._json_publish_count += 1
 
     def _publish_value(self, topic: str, value: Any, *, retain: bool = False) -> None:
         if value is None or self._client is None:
             return
         self._client.publish(topic, str(value), qos=0, retain=retain)
+        self._value_publish_count += 1
 
 
 def _env_first(*names: str) -> str:
