@@ -2504,8 +2504,8 @@ INDEX_HTML = """<!doctype html>
               </div>
               <div class="chip-grid">${groupChecks}</div>
               <div class="service-actions">
-                <button type="button" data-action="active-favourite" data-favourite="${escapeHtml(id)}" ${pending ? "disabled" : ""}>${escapeHtml(pending ? "Sending" : "Apply")}</button>
-                <button type="button" class="secondary" data-action="favourite-save" data-favourite="${escapeHtml(id)}">Save Favourite</button>
+                <button type="button" data-action="active-favourite" data-favourite="${escapeHtml(id)}" ${pending ? "disabled" : ""}>${escapeHtml(pending ? "Sending" : "Run")}</button>
+                <button type="button" class="secondary" data-action="favourite-save" data-favourite="${escapeHtml(id)}">Save</button>
                 <button type="button" class="secondary" data-action="favourite-clear" data-favourite="${escapeHtml(id)}">Clear Favourite</button>
               </div>
             </div>
