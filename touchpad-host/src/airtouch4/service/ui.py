@@ -26,6 +26,9 @@ INDEX_HTML = """<!doctype html>
       --accent-soft: #e6f4f7;
       --cool: #2d6cdf;
       --warm: #b45f06;
+      --led-blue: #1e88ff;
+      --led-red: #e02b20;
+      --led-amber: #d18b00;
       --header: #16212c;
       --header-ink: #ffffff;
       --active-bg: #0f6e8e;
@@ -52,6 +55,9 @@ INDEX_HTML = """<!doctype html>
       --accent-soft: #173a46;
       --cool: #73a7ff;
       --warm: #f0a650;
+      --led-blue: #49a8ff;
+      --led-red: #ff5a4f;
+      --led-amber: #f0b23e;
       --header: #0b1117;
       --header-ink: #f3f8fb;
       --active-bg: #57b6d4;
@@ -131,25 +137,62 @@ INDEX_HTML = """<!doctype html>
       font-weight: 680;
       white-space: nowrap;
     }
-    .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: var(--warn);
-      flex: 0 0 auto;
+    .header-status {
+      width: 18px;
+      min-width: 18px;
+      justify-content: center;
     }
-    .ok .dot { background: var(--ok); }
-    .bad .dot { background: var(--bad); }
+    .header-status .status-text {
+      display: none;
+    }
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--led-amber);
+      flex: 0 0 auto;
+      box-shadow: 0 0 0 2px rgba(255,255,255,.18), 0 0 12px color-mix(in srgb, var(--led-amber) 72%, transparent);
+    }
+    .led-blue .dot {
+      background: var(--led-blue);
+      box-shadow: 0 0 0 2px rgba(255,255,255,.18), 0 0 14px color-mix(in srgb, var(--led-blue) 74%, transparent);
+    }
+    .led-red .dot {
+      background: var(--led-red);
+      box-shadow: 0 0 0 2px rgba(255,255,255,.18), 0 0 14px color-mix(in srgb, var(--led-red) 78%, transparent);
+    }
+    .led-amber .dot {
+      background: var(--led-amber);
+      box-shadow: 0 0 0 2px rgba(255,255,255,.18), 0 0 12px color-mix(in srgb, var(--led-amber) 72%, transparent);
+    }
+    .led-blue-red .dot {
+      animation: led-blue-red 2s steps(1, end) infinite;
+    }
+    @keyframes led-blue-red {
+      0%, 49% {
+        background: var(--led-blue);
+        box-shadow: 0 0 0 2px rgba(255,255,255,.18), 0 0 14px color-mix(in srgb, var(--led-blue) 74%, transparent);
+      }
+      50%, 100% {
+        background: var(--led-red);
+        box-shadow: 0 0 0 2px rgba(255,255,255,.18), 0 0 14px color-mix(in srgb, var(--led-red) 78%, transparent);
+      }
+    }
     .nav {
       grid-column: 1 / -1;
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
-      width: fit-content;
+      width: 100%;
       padding: 4px;
       border: 1px solid rgba(255,255,255,.14);
       border-radius: 8px;
       background: rgba(255,255,255,.06);
+    }
+    .nav .settings-tab {
+      margin-left: auto;
+      min-width: 42px;
+      font-size: 17px;
     }
     .error-strip {
       display: none;
@@ -184,7 +227,7 @@ INDEX_HTML = """<!doctype html>
       align-items: flex-start;
       justify-content: flex-end;
     }
-    .theme-stack {
+    .chip-stack {
       display: grid;
       gap: 5px;
       justify-items: end;
@@ -221,18 +264,6 @@ INDEX_HTML = """<!doctype html>
       color: var(--active-ink);
       border-color: var(--active-bg);
       box-shadow: 0 6px 14px rgba(0,0,0,.18);
-    }
-    .theme-toggle {
-      width: 38px;
-      min-width: 38px;
-      height: 38px;
-      padding: 0;
-      border-color: rgba(255,255,255,.24);
-      background: rgba(255,255,255,.08);
-      color: #fff;
-      font-size: 18px;
-      line-height: 1;
-      border-radius: 8px;
     }
     .view { display: none; }
     .view.active { display: grid; gap: 14px; }
@@ -350,9 +381,9 @@ INDEX_HTML = """<!doctype html>
       line-height: 1;
     }
     .thermostat-face {
-      width: min(260px, 100%);
+      width: min(236px, 100%);
       aspect-ratio: 1;
-      margin: 2px auto 4px;
+      margin: 0 auto 2px;
       border-radius: 999px;
       border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
       background:
@@ -401,7 +432,7 @@ INDEX_HTML = """<!doctype html>
       justify-items: center;
     }
     .thermostat-value {
-      font-size: 56px;
+      font-size: 50px;
       line-height: .95;
       font-weight: 800;
       letter-spacing: 0;
@@ -433,6 +464,19 @@ INDEX_HTML = """<!doctype html>
     .ac-mode-bank {
       display: grid;
       gap: 12px;
+    }
+    .ac-readings {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .ac-readings .reading {
+      min-height: 76px;
+      display: grid;
+      align-content: center;
+    }
+    .ac-readings .big {
+      font-size: 30px;
     }
     .reading {
       min-width: 0;
@@ -503,6 +547,15 @@ INDEX_HTML = """<!doctype html>
       box-shadow: var(--shadow-soft);
       position: relative;
       overflow: hidden;
+    }
+    .theme-choices {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .theme-choices .option {
+      min-width: 96px;
+      justify-content: center;
     }
     .group-tile.on {
       border-color: color-mix(in srgb, var(--ok) 50%, var(--line));
@@ -634,6 +687,15 @@ INDEX_HTML = """<!doctype html>
     .temp-line .axis {
       stroke: var(--line);
       stroke-width: 1;
+    }
+    .temp-line .damper-line {
+      fill: none;
+      stroke: color-mix(in srgb, var(--muted) 58%, var(--panel));
+      stroke-width: 1.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 2.4 3.2;
+      opacity: .62;
     }
     .history-meta {
       display: flex;
@@ -884,9 +946,8 @@ INDEX_HTML = """<!doctype html>
   <header>
     <h1 id="app-title">AirTouch 4</h1>
     <div class="header-actions">
-      <div id="status" class="status"><span class="dot"></span><span>Connecting</span></div>
-      <div class="theme-stack">
-        <button type="button" id="theme-toggle" class="theme-toggle">Theme</button>
+      <div id="status" class="status header-status led-amber" title="Connecting" aria-label="Connecting"><span class="dot"></span><span class="status-text">Connecting</span></div>
+      <div class="chip-stack">
         <div id="weather-chip" class="weather-chip"></div>
         <div id="indoor-chip" class="weather-chip"></div>
       </div>
@@ -894,7 +955,7 @@ INDEX_HTML = """<!doctype html>
     <nav class="nav" aria-label="Primary">
       <button type="button" class="active" data-view-button="control">Control</button>
       <button type="button" data-view-button="programs">Favourites & Programs</button>
-      <button type="button" data-view-button="service">Service</button>
+      <button type="button" class="settings-tab" data-view-button="settings" aria-label="Settings" title="Settings">&#9881;</button>
     </nav>
   </header>
   <main>
@@ -956,18 +1017,34 @@ INDEX_HTML = """<!doctype html>
       </div>
     </div>
 
-    <div id="view-service" class="view">
-      <div class="subnav" aria-label="Service pages">
-        <button type="button" class="active" data-subview-button="service" data-subview="sensors">Sensors</button>
-        <button type="button" data-subview-button="service" data-subview="grouping">Grouping</button>
-        <button type="button" data-subview-button="service" data-subview="spill">Spill</button>
-        <button type="button" data-subview-button="service" data-subview="balance">Balance</button>
-        <button type="button" data-subview-button="service" data-subview="ac-setup">AC Setup</button>
-        <button type="button" data-subview-button="service" data-subview="parameters">Parameters</button>
-        <button type="button" data-subview-button="service" data-subview="system">System Info</button>
-        <button type="button" data-subview-button="service" data-subview="diagnostics">Diagnostics</button>
+    <div id="view-settings" class="view">
+      <div class="subnav" aria-label="Settings pages">
+        <button type="button" class="active" data-subview-button="settings" data-subview="app">App</button>
+        <button type="button" data-subview-button="settings" data-subview="sensors">Sensors</button>
+        <button type="button" data-subview-button="settings" data-subview="grouping">Grouping</button>
+        <button type="button" data-subview-button="settings" data-subview="spill">Spill</button>
+        <button type="button" data-subview-button="settings" data-subview="balance">Balance</button>
+        <button type="button" data-subview-button="settings" data-subview="ac-setup">AC Setup</button>
+        <button type="button" data-subview-button="settings" data-subview="parameters">Parameters</button>
+        <button type="button" data-subview-button="settings" data-subview="system">System Info</button>
+        <button type="button" data-subview-button="settings" data-subview="diagnostics">Diagnostics</button>
       </div>
-      <div id="service-sensors" class="subview active">
+      <div id="settings-app" class="subview active">
+        <section>
+          <h2>App Settings</h2>
+          <div class="field-grid">
+            <div class="field">
+              <label>Theme</label>
+              <div id="theme-selector" class="theme-choices" role="group" aria-label="Theme">
+                <button type="button" class="option" data-theme-choice="system">&#128187; System</button>
+                <button type="button" class="option" data-theme-choice="light">&#9728; Light</button>
+                <button type="button" class="option" data-theme-choice="dark">&#9790; Dark</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div id="settings-sensors" class="subview">
         <section>
           <h2>Sensors</h2>
           <div class="service-actions">
@@ -980,19 +1057,19 @@ INDEX_HTML = """<!doctype html>
           </table>
         </section>
       </div>
-      <div id="service-grouping" class="subview">
+      <div id="settings-grouping" class="subview">
         <section>
           <h2>Grouping</h2>
           <div class="cards" id="grouping"></div>
         </section>
       </div>
-      <div id="service-spill" class="subview">
+      <div id="settings-spill" class="subview">
         <section>
           <h2>Spill</h2>
           <div class="cards" id="spill"></div>
         </section>
       </div>
-      <div id="service-balance" class="subview">
+      <div id="settings-balance" class="subview">
         <section>
           <h2>Balance</h2>
           <table>
@@ -1001,13 +1078,13 @@ INDEX_HTML = """<!doctype html>
           </table>
         </section>
       </div>
-      <div id="service-ac-setup" class="subview">
+      <div id="settings-ac-setup" class="subview">
         <section>
           <h2>AC Setup</h2>
           <div class="cards" id="ac-setup"></div>
         </section>
       </div>
-      <div id="service-parameters" class="subview">
+      <div id="settings-parameters" class="subview">
         <section>
           <h2>Parameters</h2>
           <div class="field-grid">
@@ -1020,7 +1097,7 @@ INDEX_HTML = """<!doctype html>
           <div class="cards" id="parameters"></div>
         </section>
       </div>
-      <div id="service-system" class="subview">
+      <div id="settings-system" class="subview">
         <section>
           <h2>System Info</h2>
           <div class="field-grid">
@@ -1037,7 +1114,7 @@ INDEX_HTML = """<!doctype html>
           <div class="cards" id="system"></div>
         </section>
       </div>
-      <div id="service-diagnostics" class="subview">
+      <div id="settings-diagnostics" class="subview">
         <section class="diagnostics">
           <h2>Diagnostics</h2>
           <div class="cards" id="metrics"></div>
@@ -1056,13 +1133,12 @@ INDEX_HTML = """<!doctype html>
     const pendingAcs = new Set();
     const pendingFavourites = new Set();
     const THEME_KEY = "airtouch4.uiTheme";
-    const themeLabels = {system: "System", light: "Light", dark: "Dark"};
-    const themeIcons = {system: "&#128187;", light: "&#9728;", dark: "&#9790;"};
     let selectedAc = 0;
     let zonePage = 0;
     let configuredTheme = "system";
     let selectedTheme = localStorage.getItem(THEME_KEY) || "system";
     let latestState = {};
+    let latestHealth = {ok: false, status: "Connecting"};
 
     function apiPath(path) {
       return `${API_ROOT}/api/${path}`;
@@ -1105,10 +1181,10 @@ INDEX_HTML = """<!doctype html>
     }
 
     function temperatureHistoryLine(history = []) {
-      const points = history
-        .map((entry) => Number(entry.temperature))
-        .filter((value) => Number.isFinite(value))
+      const entries = history
+        .filter((entry) => Number.isFinite(Number(entry.temperature)))
         .slice(-24);
+      const points = entries.map((entry) => Number(entry.temperature));
       if (points.length < 2) {
         return `<div class="history-strip"><svg class="temp-line" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true"><line class="axis" x1="0" y1="18" x2="120" y2="18"></line></svg><div class="history-meta"><span>History</span><span>${points.length ? temp(points[0]) : "-"}</span></div></div>`;
       }
@@ -1122,9 +1198,23 @@ INDEX_HTML = """<!doctype html>
       });
       const line = coords.map(([x, y], index) => `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
       const area = `${line} L 120 27 L 0 27 Z`;
+      const damperCoords = entries
+        .map((entry, index) => {
+          const value = Number(entry.percentage);
+          if (!Number.isFinite(value)) return null;
+          const bounded = Math.min(100, Math.max(0, value));
+          const x = entries.length === 1 ? 0 : (index / (entries.length - 1)) * 120;
+          const y = 24 - (bounded / 100) * 20;
+          return [x, y];
+        })
+        .filter(Boolean);
+      const damperLine = damperCoords.length >= 2
+        ? damperCoords.map(([x, y], index) => `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`).join(" ")
+        : "";
       return `<div class="history-strip">
         <svg class="temp-line" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true">
           <path class="area" d="${area}"></path>
+          ${damperLine ? `<path class="damper-line" d="${damperLine}"></path>` : ""}
           <path d="${line}"></path>
         </svg>
         <div class="history-meta"><span>${escapeHtml(temp(points[0]))}</span><span>${escapeHtml(temp(points[points.length - 1]))}</span></div>
@@ -1165,10 +1255,11 @@ INDEX_HTML = """<!doctype html>
 
     function applyTheme() {
       document.body.dataset.theme = themeToApply();
-      const toggle = $("theme-toggle");
-      toggle.innerHTML = themeIcons[selectedTheme] || "&#128187;";
-      toggle.title = `${themeLabels[selectedTheme] || "System"} theme`;
-      toggle.setAttribute("aria-label", toggle.title);
+      document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+        const active = button.dataset.themeChoice === selectedTheme;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+      });
     }
 
     function modeName(value) {
@@ -1440,10 +1531,35 @@ INDEX_HTML = """<!doctype html>
       });
     }
 
-    function setStatus(health) {
+    function ledStateFromHealth(health, led) {
+      const label = health.ok ? "Running" : text(health.error, text(health.status, "Error"));
+      if (!health.ok) {
+        return {className: "led-red", label: `Runtime ${label}`};
+      }
+      const code = led && Number.isInteger(led.led_code) ? led.led_code : null;
+      if (code === null) {
+        return {className: "led-amber", label: `${label} / waiting for touchpad LED`};
+      }
+      if (code === 0x00) {
+        return {className: "led-amber", label: `${label} / touchpad blue LED off (0x00)`};
+      }
+      if (code === 0x01) {
+        return {className: "led-blue", label: `${label} / touchpad blue LED on (0x01)`};
+      }
+      if (code === 0x16) {
+        return {className: "led-blue-red", label: `${label} / touchpad LED alternating blue/red (0x16)`};
+      }
+      return {className: "led-amber", label: `${label} / touchpad LED 0x${code.toString(16).toUpperCase().padStart(2, "0")}`};
+    }
+
+    function setStatus(health, led = null) {
+      latestHealth = health;
       const el = $("status");
-      el.className = "status " + (health.ok ? "ok" : "bad");
-      el.lastElementChild.textContent = health.ok ? "Running" : text(health.error, text(health.status, "Error"));
+      const state = ledStateFromHealth(health, led);
+      el.className = "status header-status " + state.className;
+      el.lastElementChild.textContent = state.label;
+      el.title = state.label;
+      el.setAttribute("aria-label", state.label);
     }
 
     function finiteNumber(value) {
@@ -1455,6 +1571,11 @@ INDEX_HTML = """<!doctype html>
       const numeric = values.map(finiteNumber).filter((value) => value !== null);
       if (!numeric.length) return null;
       return numeric.reduce((sum, value) => sum + value, 0) / numeric.length;
+    }
+
+    function runtimeHoursText(runtime) {
+      const hours = finiteNumber(runtime && (runtime.running_hours ?? runtime.minutes_or_flags));
+      return hours === null ? "-" : `${Math.round(hours)} h`;
     }
 
     function groupIsActive(group) {
@@ -1547,6 +1668,7 @@ INDEX_HTML = """<!doctype html>
       const status = ac.status || {};
       const base = ac.base || {};
       const settings = ac.settings || {};
+      const runtime = ac.runtime || {};
       const power = status.power_on === true ? "on" : status.power_on === false ? "off" : "-";
       const isOn = power === "on";
       const pending = pendingAcs.has(String(id));
@@ -1572,6 +1694,7 @@ INDEX_HTML = """<!doctype html>
               <div class="muted ac-meta">
                 <span>${escapeHtml(modeLabel)} mode</span>
                 <span>${escapeHtml(fanLabel)} fan</span>
+                <span>${escapeHtml(runtimeHoursText(runtime))} runtime</span>
                 <span class="${isOn ? "pill on ac-state-pill" : "pill ac-state-pill"}">${escapeHtml(power)}</span>
               </div>
             </div>
@@ -1585,6 +1708,16 @@ INDEX_HTML = """<!doctype html>
               title="${escapeHtml(isOn ? "Turn AC off" : "Turn AC on")}"
               ${pending ? "disabled" : ""}
             >${pending ? "..." : "&#9211;"}</button>
+          </div>
+          <div class="ac-readings">
+            <div class="reading">
+              <div class="label">Current</div>
+              <div class="big">${escapeHtml(currentText)}</div>
+            </div>
+            <div class="reading">
+              <div class="label">Set</div>
+              <div class="big">${escapeHtml(setpointText === "-" ? "-" : `${setpointText} C`)}</div>
+            </div>
           </div>
           <div class="thermostat-face">
             ${currentMarker}
@@ -2091,6 +2224,7 @@ INDEX_HTML = """<!doctype html>
       renderAlerts(collectAlerts(controller, state, integrations, transactions));
       renderWeather(integrations);
       renderIndoor(integrations, state);
+      setStatus(latestHealth, state.last_led || null);
       const acEntries = visibleAcs(state);
       if (!acEntries.some(([id]) => Number(id) === selectedAc)) selectedAc = Number(acEntries[0] && acEntries[0][0]) || 0;
       const allZoneEntries = zoneEntriesForAc(state, selectedAc);
@@ -2100,6 +2234,7 @@ INDEX_HTML = """<!doctype html>
       }).length;
 
       $("metrics").innerHTML = [
+        metric("Service", text(controller.status, "-")),
         metric("Transport", config.transport),
         metric("Endpoint", config.transport === "tcp_serial" ? `${config.tcp_host}:${config.tcp_port}` : config.port),
         metric("Address", runtime.src),
@@ -2195,9 +2330,10 @@ INDEX_HTML = """<!doctype html>
       });
     });
 
-    $("theme-toggle").addEventListener("click", () => {
-      const order = ["system", "light", "dark"];
-      selectedTheme = order[(order.indexOf(selectedTheme) + 1) % order.length];
+    $("theme-selector").addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-theme-choice]");
+      if (!button) return;
+      selectedTheme = button.dataset.themeChoice;
       localStorage.setItem(THEME_KEY, selectedTheme);
       applyTheme();
     });
@@ -2206,7 +2342,7 @@ INDEX_HTML = """<!doctype html>
       window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
     }
 
-    $("view-service").addEventListener("click", async (event) => {
+    $("view-settings").addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-service-action]");
       if (!button) return;
       const action = button.dataset.serviceAction;

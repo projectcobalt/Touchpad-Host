@@ -299,9 +299,11 @@ def decode_ac_runtime_status(payload: bytes) -> dict[str, Any]:
     records = []
     for offset in range(0, len(payload) - 3, 4):
         rec = payload[offset:offset + 4]
+        running_hours = u16be(rec, 0)
         records.append({
             "ac": offset // 4,
-            "minutes_or_flags": u16be(rec, 0),
+            "running_hours": running_hours,
+            "minutes_or_flags": running_hours,
             "raw_word_2": u16be(rec, 2),
             "raw": hex_bytes(rec),
         })
