@@ -43,6 +43,14 @@ def create_app(controller: RuntimeController):
     def events() -> dict[str, Any]:
         return {"events": controller.recent_events()}
 
+    @app.post("/api/adaptive")
+    async def adaptive(body: dict[str, Any]) -> dict[str, Any]:
+        try:
+            config = controller.update_adaptive_config(body)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"adaptive": config}
+
     @app.post("/api/command")
     async def command(body: dict[str, Any]) -> dict[str, Any]:
         action = str(body.get("action", ""))
@@ -50,7 +58,8 @@ def create_app(controller: RuntimeController):
         if not isinstance(data, dict):
             raise HTTPException(status_code=400, detail="data must be an object")
         try:
-            spec = build_transaction(action, data)
+            runtime = controller.snapshot().get("runtime") or {}
+            spec = build_transaction(action, data, state=runtime.get("state") or {})
         except CommandRequestError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return controller.enqueue(spec)

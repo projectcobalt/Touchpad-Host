@@ -28,6 +28,7 @@ BAUDRATE="$(config baudrate 115200)"
 TCP_HOST="$(config tcp_host 127.0.0.1)"
 TCP_PORT="$(config tcp_port 6638)"
 RECONNECT_INTERVAL="$(config reconnect_interval 5.0)"
+PROTOCOL="$(config protocol auto)"
 SOURCE_ADDRESS="$(config source_address auto)"
 FORCE_SOURCE_ADDRESS="$(config force_source_address false)"
 DETECT_SECONDS="$(config detect_seconds 3.0)"
@@ -41,6 +42,13 @@ WEATHER_ENTITY="$(config weather_entity "")"
 INDOOR_TEMPERATURE_ENTITY="$(config indoor_temperature_entity "")"
 INDOOR_HUMIDITY_ENTITY="$(config indoor_humidity_entity "")"
 WEATHER_POLL_INTERVAL="$(config weather_poll_interval 60.0)"
+ADAPTIVE_MODE="$(config adaptive_mode off)"
+ADAPTIVE_COOL_DIFF="$(config adaptive_cool_diff 4)"
+ADAPTIVE_COOL_COMFORT_TEMP="$(config adaptive_cool_comfort_temp 24)"
+ADAPTIVE_HEAT_DIFF="$(config adaptive_heat_diff 4)"
+ADAPTIVE_HEAT_COMFORT_TEMP="$(config adaptive_heat_comfort_temp 20)"
+ADAPTIVE_CHECK_INTERVAL="$(config adaptive_check_interval 60.0)"
+ADAPTIVE_COMMAND_COOLDOWN="$(config adaptive_command_cooldown 300.0)"
 MQTT_ENABLED="$(config mqtt_enabled false)"
 MQTT_HOST="$(config mqtt_host "")"
 MQTT_PORT="$(config mqtt_port 1883)"
@@ -75,6 +83,24 @@ if [[ "${TRANSPORT}" == "tcp_serial" && ( -z "${TCP_HOST}" || -z "${TCP_PORT}" )
     exit 2
 fi
 
+case "${PROTOCOL}" in
+    auto|at4|at5)
+        ;;
+    *)
+        echo "Invalid protocol: ${PROTOCOL}" >&2
+        exit 2
+        ;;
+esac
+
+case "${ADAPTIVE_MODE}" in
+    off|recommend|auto_off|adaptive)
+        ;;
+    *)
+        echo "Invalid adaptive_mode: ${ADAPTIVE_MODE}" >&2
+        exit 2
+        ;;
+esac
+
 export PYTHONPATH=/opt/airtouch4/src
 
 RESOLVED_HEARTBEAT_PAYLOAD="$(
@@ -91,6 +117,7 @@ ARGS=(
     "--tcp-host" "${TCP_HOST}"
     "--tcp-port" "${TCP_PORT}"
     "--reconnect-interval" "${RECONNECT_INTERVAL}"
+    "--protocol" "${PROTOCOL}"
     "--host" "0.0.0.0"
     "--http-port" "8099"
     "--source-address" "${SOURCE_ADDRESS}"
@@ -103,6 +130,13 @@ ARGS=(
     "--indoor-temperature-entity" "${INDOOR_TEMPERATURE_ENTITY}"
     "--indoor-humidity-entity" "${INDOOR_HUMIDITY_ENTITY}"
     "--weather-poll-interval" "${WEATHER_POLL_INTERVAL}"
+    "--adaptive-mode" "${ADAPTIVE_MODE}"
+    "--adaptive-cool-diff" "${ADAPTIVE_COOL_DIFF}"
+    "--adaptive-cool-comfort-temp" "${ADAPTIVE_COOL_COMFORT_TEMP}"
+    "--adaptive-heat-diff" "${ADAPTIVE_HEAT_DIFF}"
+    "--adaptive-heat-comfort-temp" "${ADAPTIVE_HEAT_COMFORT_TEMP}"
+    "--adaptive-check-interval" "${ADAPTIVE_CHECK_INTERVAL}"
+    "--adaptive-command-cooldown" "${ADAPTIVE_COMMAND_COOLDOWN}"
     "--mqtt-host" "${MQTT_HOST}"
     "--mqtt-port" "${MQTT_PORT}"
     "--mqtt-username" "${MQTT_USERNAME}"
@@ -138,5 +172,5 @@ if [[ "${REMOTE_ERROR_RESOLUTION}" == "true" ]]; then
     ARGS+=("--remote-error-resolution")
 fi
 
-echo "Starting OpenAirtouch with ${TRANSPORT}"
+echo "Starting OpenAirtouch with ${TRANSPORT} (${PROTOCOL})"
 exec /opt/airtouch4/venv/bin/python /opt/airtouch4/scripts/airtouch_service.py "${ARGS[@]}"

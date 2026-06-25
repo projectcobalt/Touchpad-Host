@@ -17,6 +17,7 @@ from ..packet import PacketParseError, parse_packet
 from ..runtime import AirTouchRuntime, RuntimeConfig, RuntimeEvent, TransportLike
 from ..session.queue import TransactionSpec
 from ..transport import SerialConfig, SerialRs485Transport, TcpSerialConfig, TcpSerialTransport
+from .adaptive import AdaptiveConfig, AdaptiveController
 from .error_resolver import RemoteErrorResolver, RemoteErrorResolverConfig
 from .ha_client import HomeAssistantApiClient, HomeAssistantApiConfig
 from .mqtt import MqttConfig, MqttStatePublisher
@@ -42,6 +43,7 @@ class RuntimeControllerConfig:
     weather_poll_interval: float = 60.0
     mqtt: MqttConfig = MqttConfig()
     error_resolver: RemoteErrorResolverConfig = RemoteErrorResolverConfig()
+    adaptive: AdaptiveConfig = AdaptiveConfig()
 
 
 class RuntimeController:
@@ -72,6 +74,7 @@ class RuntimeController:
         self._ha_client = HomeAssistantApiClient(config.weather)
         self._mqtt = MqttStatePublisher(config.mqtt)
         self._error_resolver = RemoteErrorResolver(config.error_resolver)
+        self._adaptive = AdaptiveController(config.adaptive)
 
     def start(self) -> None:
         with self._lock:
@@ -122,6 +125,7 @@ class RuntimeController:
                     },
                     "mqtt": self._mqtt.status(),
                     "error_resolver": self._error_resolver.status(),
+                    "adaptive": self._adaptive.status(),
                 },
             }
 
@@ -135,6 +139,11 @@ class RuntimeController:
             "error": snap["controller"]["error"],
             "address_assigned": runtime_meta.get("address_assigned", False),
             "boot_complete": runtime_meta.get("boot_complete", False),
+            "protocol_mode": runtime_meta.get("protocol_mode"),
+            "protocol": runtime_meta.get("protocol"),
+            "protocol_name": runtime_meta.get("protocol_name"),
+            "detected_protocol": runtime_meta.get("detected_protocol"),
+            "protocol_mismatch": runtime_meta.get("protocol_mismatch", False),
             "src": runtime_meta.get("src"),
             "config": snap["controller"]["config"],
         }
@@ -151,6 +160,7 @@ class RuntimeController:
             "tcp_host": self.config.tcp_host,
             "tcp_port": self.config.tcp_port,
             "reconnect_interval": self.config.reconnect_interval,
+            "protocol": self.config.runtime.protocol,
             "bus_log": str(self.config.bus_log) if self.config.bus_log is not None else None,
             "ui_theme": self.config.ui_theme,
             "weather_entity": self.config.weather.weather_entity,
@@ -170,7 +180,12 @@ class RuntimeController:
                 if self.config.error_resolver.cache_path is not None
                 else None
             ),
+            "adaptive": self._adaptive.public_config(),
         }
+
+    def update_adaptive_config(self, values: dict[str, Any]) -> dict[str, Any]:
+        with self._lock:
+            return self._adaptive.update_config(values)
 
     def _run(self) -> None:
         while not self._stop.is_set():
@@ -190,6 +205,7 @@ class RuntimeController:
                         for event in runtime.step():
                             self._record_event(event, logger)
                         self._poll_weather()
+                        self._run_adaptive(runtime)
                         self._publish_mqtt()
                         time.sleep(self.config.loop_sleep)
             except Exception as exc:  # pragma: no cover - exercised in live runs
@@ -284,6 +300,24 @@ class RuntimeController:
             return
         self._next_mqtt_publish = now + max(2.0, self.config.mqtt.publish_interval)
         self._mqtt.publish(self.snapshot())
+
+    def _run_adaptive(self, runtime: AirTouchRuntime) -> None:
+        runtime_snapshot = runtime.snapshot()
+        integrations = {
+            "weather": {"state": self._weather, "error": self._weather_error},
+            "indoor": {"state": self._indoor, "error": self._indoor_error},
+        }
+        specs = self._adaptive.evaluate(runtime_snapshot, integrations)
+        if specs:
+            runtime.enqueue(specs)
+            with self._lock:
+                for spec in specs:
+                    self._events.append({
+                        "event": "adaptive",
+                        "message": f"queued {spec.name}",
+                        "command": f"0x{spec.command:02X}",
+                        "state_changed": False,
+                    })
 
     def _sleep_before_reconnect(self) -> None:
         deadline = time.monotonic() + max(0.1, self.config.reconnect_interval)

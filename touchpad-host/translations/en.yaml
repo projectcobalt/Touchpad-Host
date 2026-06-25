@@ -56,6 +56,27 @@ configuration:
   weather_poll_interval:
     name: Weather Poll Interval
     description: Seconds between local Home Assistant weather and indoor sensor reads.
+  adaptive_mode:
+    name: Adaptive Mode
+    description: Weather-adaptive control mode. Off never acts, Recommend reports opportunities, Auto Off turns favourable ACs off, and Adaptive adjusts setpoints.
+  adaptive_cool_diff:
+    name: Cool Differential
+    description: Degrees below outside temperature used to calculate the cooling adaptive target.
+  adaptive_cool_comfort_temp:
+    name: Cool Comfort Limit
+    description: Highest cooling target used by adaptive control.
+  adaptive_heat_diff:
+    name: Heat Differential
+    description: Degrees above outside temperature used to calculate the heating adaptive target.
+  adaptive_heat_comfort_temp:
+    name: Heat Comfort Limit
+    description: Lowest heating target used by adaptive control.
+  adaptive_check_interval:
+    name: Adaptive Check Interval
+    description: Seconds between adaptive control evaluations.
+  adaptive_command_cooldown:
+    name: Adaptive Command Cooldown
+    description: Minimum seconds before repeating the same adaptive command.
   mqtt_enabled:
     name: MQTT Publishing
     description: Publish AirTouch state and read-only climate discovery to MQTT.

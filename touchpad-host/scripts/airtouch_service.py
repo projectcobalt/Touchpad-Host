@@ -13,6 +13,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from airtouch4.runtime import RuntimeConfig
+from airtouch4.service.adaptive import AdaptiveConfig
 from airtouch4.service.api import create_app
 from airtouch4.service.controller import RuntimeController, RuntimeControllerConfig
 from airtouch4.service.error_resolver import RemoteErrorResolverConfig
@@ -30,6 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tcp-host", default="127.0.0.1", help="TCP serial bridge host when --transport tcp_serial is used.")
     parser.add_argument("--tcp-port", type=int, default=6638, help="TCP serial bridge port when --transport tcp_serial is used.")
     parser.add_argument("--reconnect-interval", type=float, default=5.0, help="Seconds to wait before reconnecting after transport errors.")
+    parser.add_argument("--protocol", default="auto", choices=("auto", "at4", "at5"), help="AirTouch protocol profile. AT4 is implemented; AT5 is detected but not yet live-control capable.")
     parser.add_argument("--host", default="0.0.0.0", help="HTTP bind host. Default: 0.0.0.0.")
     parser.add_argument("--http-port", type=int, default=8099, help="HTTP bind port. Default matches HA ingress convention.")
     parser.add_argument("--bus-log", type=Path, help="Optional raw RX/TX/init JSONL log.")
@@ -44,6 +46,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--indoor-temperature-entity", default="")
     parser.add_argument("--indoor-humidity-entity", default="")
     parser.add_argument("--weather-poll-interval", type=float, default=60.0)
+    parser.add_argument("--adaptive-mode", default="off", choices=("off", "recommend", "auto_off", "adaptive"))
+    parser.add_argument("--adaptive-cool-diff", type=int, default=4)
+    parser.add_argument("--adaptive-cool-comfort-temp", type=int, default=24)
+    parser.add_argument("--adaptive-heat-diff", type=int, default=4)
+    parser.add_argument("--adaptive-heat-comfort-temp", type=int, default=20)
+    parser.add_argument("--adaptive-check-interval", type=float, default=60.0)
+    parser.add_argument("--adaptive-command-cooldown", type=float, default=300.0)
     parser.add_argument("--mqtt-enabled", action="store_true")
     parser.add_argument("--mqtt-host", default="", help="MQTT broker host. Blank defaults to the HA Mosquitto add-on host core-mosquitto.")
     parser.add_argument("--mqtt-port", type=int, default=1883)
@@ -94,6 +103,7 @@ def main(argv: list[str] | None = None) -> int:
         auto_address=True,
         force_source_address=args.force_source_address,
         init_transactions=True,
+        protocol=args.protocol,
     )
     controller = RuntimeController(
         RuntimeControllerConfig(
@@ -112,6 +122,15 @@ def main(argv: list[str] | None = None) -> int:
                 indoor_humidity_entity=args.indoor_humidity_entity,
             ),
             weather_poll_interval=args.weather_poll_interval,
+            adaptive=AdaptiveConfig(
+                mode=args.adaptive_mode,
+                cool_diff=args.adaptive_cool_diff,
+                cool_comfort_temp=args.adaptive_cool_comfort_temp,
+                heat_diff=args.adaptive_heat_diff,
+                heat_comfort_temp=args.adaptive_heat_comfort_temp,
+                check_interval=args.adaptive_check_interval,
+                command_cooldown=args.adaptive_command_cooldown,
+            ),
             mqtt=MqttConfig(
                 enabled=args.mqtt_enabled,
                 host=args.mqtt_host,

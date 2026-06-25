@@ -12,8 +12,9 @@ class CommandRequestError(ValueError):
     """Raised when an API command request is invalid or unsupported."""
 
 
-def build_transaction(action: str, data: dict[str, Any]) -> TransactionSpec:
+def build_transaction(action: str, data: dict[str, Any], *, state: dict[str, Any] | None = None) -> TransactionSpec:
     """Build a runtime transaction from a UI/API command intent."""
+    _validate_smart_limits(action, data, state or {})
     spec = _build_command_spec(action, data)
     return TransactionSpec.from_command(spec, name=action)
 
@@ -222,6 +223,95 @@ def _optional_int_list(data: dict[str, Any], key: str) -> list[int] | None:
     if key not in data or data[key] is None:
         return None
     return _int_list(data, key)
+
+
+def _validate_smart_limits(action: str, data: dict[str, Any], state: dict[str, Any]) -> None:
+    if not state:
+        return
+    setpoint = _command_setpoint(action, data)
+    if setpoint is None:
+        return
+    ac = _command_ac(action, data, state)
+    if ac is None:
+        return
+    limits = _ac_setpoint_limits(state, ac)
+    if limits is None:
+        return
+    minimum, maximum = limits
+    if not minimum <= setpoint <= maximum:
+        raise CommandRequestError(f"setpoint must be between {minimum} and {maximum} for AC {ac + 1}, got {setpoint}")
+
+
+def _command_setpoint(action: str, data: dict[str, Any]) -> int | None:
+    if action == "ac_status":
+        return _optional_int(data, "setpoint")
+    if action == "group_setpoint":
+        return _int(data, "setpoint")
+    if action in {"group_power", "group_turbo"}:
+        sensor_control = _optional_bool(data, "sensor_control")
+        if sensor_control is False:
+            return None
+        return _optional_int(data, "setpoint") or 23
+    return None
+
+
+def _command_ac(action: str, data: dict[str, Any], state: dict[str, Any]) -> int | None:
+    if action == "ac_status":
+        return _int(data, "ac")
+    if action in {"group_setpoint", "group_power", "group_turbo"}:
+        return _ac_for_group(state, _int(data, "group"))
+    return None
+
+
+def _ac_setpoint_limits(state: dict[str, Any], ac: int) -> tuple[int, int] | None:
+    record = _indexed(state.get("acs") or {}, ac)
+    if not isinstance(record, dict):
+        return None
+    settings = record.get("settings") or {}
+    if not isinstance(settings, dict):
+        return None
+    minimum = settings.get("min_setpoint")
+    maximum = settings.get("max_setpoint")
+    if not isinstance(minimum, int) or not isinstance(maximum, int) or minimum > maximum:
+        return None
+    return max(4, minimum), min(35, maximum)
+
+
+def _ac_for_group(state: dict[str, Any], group: int) -> int | None:
+    acs = state.get("acs") or {}
+    if not isinstance(acs, dict):
+        return None
+    for key, record in acs.items():
+        if not isinstance(record, dict):
+            continue
+        base = record.get("base") or {}
+        if not isinstance(base, dict):
+            continue
+        start = base.get("group_start")
+        count = base.get("group_count")
+        if isinstance(start, int) and isinstance(count, int) and start <= group < start + count:
+            try:
+                return int(key)
+            except (TypeError, ValueError):
+                ac = base.get("ac")
+                return ac if isinstance(ac, int) else None
+    if len(acs) == 1:
+        only_key = next(iter(acs))
+        try:
+            return int(only_key)
+        except (TypeError, ValueError):
+            record = acs[only_key]
+            if isinstance(record, dict):
+                base = record.get("base") or {}
+                ac = base.get("ac") if isinstance(base, dict) else None
+                return ac if isinstance(ac, int) else None
+    return None
+
+
+def _indexed(mapping: Any, key: int) -> Any:
+    if not isinstance(mapping, dict):
+        return None
+    return mapping.get(key) if key in mapping else mapping.get(str(key))
 
 
 def _record_list(data: dict[str, Any], key: str) -> list[dict[str, Any]]:
