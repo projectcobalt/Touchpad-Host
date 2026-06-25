@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from ..live_log import JsonlBusLogger
+from ..packet import PacketParseError, parse_packet
 from ..runtime import AirTouchRuntime, RuntimeConfig, RuntimeEvent, TransportLike
 from ..session.queue import TransactionSpec
 from ..transport import SerialConfig, SerialRs485Transport, TcpSerialConfig, TcpSerialTransport
@@ -303,16 +304,17 @@ def _event_record(event: RuntimeEvent) -> dict[str, Any]:
         "message": event.message,
         "state_changed": event.state_changed,
     }
-    if event.packet is not None:
+    packet = _event_packet_for_log(event)
+    if packet is not None:
         record.update({
             "direction": event.direction,
-            "src": f"0x{event.packet.src:02X}",
-            "dest": f"0x{event.packet.dest:02X}",
-            "cmd": f"0x{event.packet.command:02X}",
-            "cmd_name": event.packet.command_name,
-            "packet_id": event.packet.packet_id,
-            "len": len(event.packet.payload),
-            "crc_ok": event.packet.crc_ok,
+            "src": f"0x{packet.src:02X}",
+            "dest": f"0x{packet.dest:02X}",
+            "cmd": f"0x{packet.command:02X}",
+            "cmd_name": packet.command_name,
+            "packet_id": packet.packet_id,
+            "len": len(packet.payload),
+            "crc_ok": packet.crc_ok,
             "decoded": event.decoded,
         })
     if event.transaction is not None:
@@ -335,7 +337,7 @@ def _add_error_displays(runtime_snapshot: dict[str, Any], resolver: RemoteErrorR
 
 
 def _frame_log_line(direction: str, event: RuntimeEvent) -> str:
-    packet = event.packet
+    packet = _event_packet_for_log(event)
     if packet is None:
         return f"bus {direction} packet=none"
     return (
@@ -345,3 +347,12 @@ def _frame_log_line(direction: str, event: RuntimeEvent) -> str:
         f"id={packet.packet_id} len={len(packet.payload)} crc_ok={packet.crc_ok} "
         f"payload={packet.payload.hex(' ').upper()}"
     )
+
+
+def _event_packet_for_log(event: RuntimeEvent) -> Any:
+    if event.event == "tx" and event.wire is not None:
+        try:
+            return parse_packet(event.wire)
+        except PacketParseError:
+            return event.packet
+    return event.packet
