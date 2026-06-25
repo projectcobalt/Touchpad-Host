@@ -41,9 +41,6 @@ configuration:
   bus_log:
     name: Bus Log
     description: Write RX, TX, status, and transaction events to persistent add-on storage.
-  ui_theme:
-    name: UI Theme
-    description: Default display theme for the ingress UI. System follows the browser or Home Assistant theme, and the header toggle can override it locally.
   weather_entity:
     name: Weather Entity
     description: Optional Home Assistant weather entity to display in the app header, for example weather.home.
@@ -65,39 +62,6 @@ configuration:
   weather_poll_interval:
     name: Weather Poll Interval
     description: Seconds between local Home Assistant weather and indoor sensor reads.
-  adaptive_mode:
-    name: Adaptive Mode
-    description: Weather-adaptive control mode. Off never acts, Recommend reports opportunities, Auto Off turns favourable ACs off, and Adaptive adjusts setpoints.
-  adaptive_cool_diff:
-    name: Cool Differential
-    description: Degrees below outside temperature used to calculate the cooling adaptive target.
-  adaptive_cool_comfort_temp:
-    name: Cool Comfort Limit
-    description: Highest cooling target used by adaptive control.
-  adaptive_heat_diff:
-    name: Heat Differential
-    description: Degrees above outside temperature used to calculate the heating adaptive target.
-  adaptive_heat_comfort_temp:
-    name: Heat Comfort Limit
-    description: Lowest heating target used by adaptive control.
-  adaptive_check_interval:
-    name: Adaptive Check Interval
-    description: Seconds between adaptive control evaluations.
-  adaptive_command_cooldown:
-    name: Adaptive Command Cooldown
-    description: Minimum seconds before repeating the same adaptive command.
-  adaptive_learning_mode:
-    name: Adaptive Learning Mode
-    description: Off disables room learning, Learn observes room response only, and Control lets learned MPC proposals refine adaptive targets.
-  adaptive_mpc_horizon_hours:
-    name: Adaptive MPC Horizon
-    description: Number of forecast hours the room-response planner evaluates when learning control is enabled.
-  adaptive_compressor_min_run_time:
-    name: Compressor Minimum Run
-    description: Minimum seconds an AC should stay on before adaptive Auto Off may turn it off.
-  adaptive_compressor_min_off_time:
-    name: Compressor Minimum Off
-    description: Minimum seconds an AC should stay off before future adaptive start logic may turn it on.
   mqtt_enabled:
     name: MQTT Publishing
     description: Publish AirTouch state and read-only climate discovery to MQTT.

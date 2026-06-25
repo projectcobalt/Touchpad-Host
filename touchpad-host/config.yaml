@@ -1,5 +1,5 @@
 name: OpenAirtouch
-version: "0.2.1"
+version: "0.2.2"
 slug: airtouch4_touchpad_host
 description: Python host for the AirTouch internal RS485 touchpad protocol.
 arch:
@@ -42,7 +42,6 @@ options:
   touchpad_temperature: 25.0
   heartbeat_payload: ""
   bus_log: false
-  ui_theme: system
   weather_entity: ""
   forecast_weather_entity: ""
   indoor_temperature_entity: ""
@@ -50,7 +49,6 @@ options:
   solar_irradiance_entity: ""
   cloud_cover_entity: ""
   weather_poll_interval: 60.0
-  adaptive_compressor_groups: ""
   mqtt_enabled: true
   mqtt_host: ""
   mqtt_port: 1883
@@ -81,7 +79,6 @@ schema:
   touchpad_temperature: float
   heartbeat_payload: str
   bus_log: bool
-  ui_theme: list(system|light|dark)
   weather_entity: str
   forecast_weather_entity: str
   indoor_temperature_entity: str
@@ -89,7 +86,6 @@ schema:
   solar_irradiance_entity: str
   cloud_cover_entity: str
   weather_poll_interval: float
-  adaptive_compressor_groups: str
   mqtt_enabled: bool
   mqtt_host: str
   mqtt_port: int

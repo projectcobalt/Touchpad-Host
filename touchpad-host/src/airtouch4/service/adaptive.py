@@ -69,7 +69,8 @@ class AdaptiveController:
         self._adapted_ac: dict[int, dict[str, int]] = {}
         self._adapted_group: dict[int, dict[str, int]] = {}
         self._mpc = AdaptiveMpcEngine()
-        self._mpc.compressor.configure(self.config.compressor_groups)
+        self._compressor_groups = self.config.compressor_groups
+        self._mpc.compressor.configure(self._compressor_groups)
         self._status: dict[str, Any] = self._empty_status()
 
     def status(self) -> dict[str, Any]:
@@ -81,7 +82,7 @@ class AdaptiveController:
             if key in values and values[key] is not None:
                 data[key] = values[key]
         self.config = _validated_config(AdaptiveConfig(**data))
-        self._mpc.compressor.configure(self.config.compressor_groups)
+        self._set_compressor_groups(self.config.compressor_groups)
         self._next_check = 0.0
         self._status = {**self._status, "config": self.public_config(), "mode": self.config.mode}
         return self.public_config()
@@ -144,6 +145,7 @@ class AdaptiveController:
         weather_signal = _weather_signal(weather, integrations)
         solar_signal = _solar_signal(weather, integrations)
         state = runtime_snapshot.get("state") or {}
+        self._set_compressor_groups(_compressor_groups_from_zone_map(state) or self.config.compressor_groups)
         adaptive_snapshot = translate_airtouch_snapshot(state, control_zones=self.config.control_zones)
         self._mpc.observe(
             adaptive_snapshot,
@@ -196,6 +198,13 @@ class AdaptiveController:
                 specs.extend(self._adaptive_action(state, device, ac, outside, weather_signal, solar_signal, climate, status, now))
         self._status = self._final_status(status)
         return specs
+
+    def _set_compressor_groups(self, groups: tuple[tuple[int, ...], ...]) -> None:
+        groups = tuple(tuple(group) for group in groups)
+        if groups == self._compressor_groups:
+            return
+        self._compressor_groups = groups
+        self._mpc.compressor.configure(groups)
 
     def _basic_action(
         self,
@@ -736,6 +745,44 @@ def _groups_for_ac(state: dict[str, Any], ac_id: int, ac: dict[str, Any]) -> lis
             continue
         result.append((group_id, value))
     return sorted(result)
+
+
+def _compressor_groups_from_zone_map(state: dict[str, Any]) -> tuple[tuple[int, ...], ...]:
+    zones_by_ac: dict[int, set[int]] = {}
+    for ac_id, ac in _iter_acs(state):
+        base = ac.get("base") or {}
+        start = base.get("group_start")
+        count = base.get("group_count")
+        if not isinstance(start, int) or not isinstance(count, int) or count <= 0:
+            continue
+        zones_by_ac[ac_id] = set(range(start, start + count))
+    if len(zones_by_ac) < 2:
+        return ()
+
+    parent = {ac_id: ac_id for ac_id in zones_by_ac}
+
+    def find(ac_id: int) -> int:
+        while parent[ac_id] != ac_id:
+            parent[ac_id] = parent[parent[ac_id]]
+            ac_id = parent[ac_id]
+        return ac_id
+
+    def union(left: int, right: int) -> None:
+        left_root = find(left)
+        right_root = find(right)
+        if left_root != right_root:
+            parent[right_root] = left_root
+
+    entries = sorted(zones_by_ac.items())
+    for index, (left_id, left_zones) in enumerate(entries):
+        for right_id, right_zones in entries[index + 1:]:
+            if left_zones.intersection(right_zones):
+                union(left_id, right_id)
+
+    groups: dict[int, list[int]] = {}
+    for ac_id in zones_by_ac:
+        groups.setdefault(find(ac_id), []).append(ac_id)
+    return tuple(tuple(sorted(members)) for members in groups.values() if len(members) >= 2)
 
 
 def _validated_control_zones(value: Any) -> tuple[int, ...]:

@@ -12,7 +12,7 @@ INDEX_HTML = """<!doctype html>
   <style>
     :root {
       color-scheme: light;
-      --bg: var(--primary-background-color, #f5f5f3);
+      --bg: #000000;
       --panel: var(--card-background-color, #ffffff);
       --panel-soft: var(--secondary-background-color, #f7f7f5);
       --panel-deep: #eeeeeb;
@@ -30,7 +30,7 @@ INDEX_HTML = """<!doctype html>
       --led-purple: #8b5cf6;
       --led-red: var(--error-color, #e02b20);
       --led-amber: var(--warning-color, #d18b00);
-      --header: #20201e;
+      --header: #000000;
       --header-ink: var(--text-primary-color, #ffffff);
       --active-bg: #4f5d75;
       --active-ink: var(--text-primary-color, #ffffff);
@@ -41,7 +41,7 @@ INDEX_HTML = """<!doctype html>
     }
     body[data-theme="dark"] {
       color-scheme: dark;
-      --bg: var(--primary-background-color, #111110);
+      --bg: #000000;
       --panel: var(--card-background-color, #1b1b19);
       --panel-soft: var(--secondary-background-color, #242421);
       --panel-deep: #151514;
@@ -59,7 +59,7 @@ INDEX_HTML = """<!doctype html>
       --led-purple: #a78bfa;
       --led-red: var(--error-color, #ff5a4f);
       --led-amber: var(--warning-color, #f0b23e);
-      --header: #0f0f0e;
+      --header: #000000;
       --header-ink: #f6f6f2;
       --active-bg: #9aa8c7;
       --active-ink: #111318;
@@ -375,28 +375,48 @@ INDEX_HTML = """<!doctype html>
     }
     .ac-panel.off .thermostat-face,
     .ac-panel.off .ac-mode-bank,
+    .ac-panel.off .ac-stat-grid,
     .ac-panel.off .thermostat-stepper {
       opacity: .58;
     }
     .ac-top {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 46px;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 440px) 46px;
       gap: 10px;
       align-items: start;
     }
     .ac-name { font-size: 26px; font-weight: 780; overflow-wrap: anywhere; }
-    .ac-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      align-items: center;
-      margin-top: 3px;
+    .ac-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(72px, 1fr));
+      gap: 8px;
+      width: min(440px, 100%);
+      justify-self: end;
+      margin-top: 2px;
     }
-    .ac-state-pill {
-      min-height: 18px;
-      padding: 1px 7px;
+    .ac-stat-pill {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: var(--lcd);
+      display: grid;
+      gap: 1px;
+      line-height: 1.1;
+    }
+    .ac-stat-pill span:first-child {
+      color: var(--muted);
       font-size: 10px;
-      line-height: 1;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .ac-stat-pill span:last-child {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 760;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .thermostat-face {
       width: min(236px, 100%);
@@ -656,7 +676,7 @@ INDEX_HTML = """<!doctype html>
     }
     .temp-line {
       width: 100%;
-      height: 24px;
+      height: 34px;
       display: block;
       overflow: visible;
     }
@@ -853,6 +873,31 @@ INDEX_HTML = """<!doctype html>
       font-weight: 650;
       text-transform: uppercase;
     }
+    #ac-timers {
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      align-items: start;
+    }
+    .ac-timer-card {
+      min-height: 0;
+    }
+    .timer-stack {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .timer-block {
+      display: grid;
+      gap: 8px;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--panel-soft) 72%, transparent);
+    }
+    .timer-block-title {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 760;
+    }
     input,
     select {
       width: 100%;
@@ -912,7 +957,7 @@ INDEX_HTML = """<!doctype html>
     .analytics-row {
       min-height: 92px;
       display: grid;
-      grid-template-columns: minmax(150px, 1.1fr) minmax(220px, 1.4fr) minmax(280px, 2fr) auto;
+      grid-template-columns: minmax(150px, .9fr) minmax(420px, 2.8fr) minmax(280px, 1.4fr) auto;
       gap: 12px;
       align-items: center;
     }
@@ -928,11 +973,55 @@ INDEX_HTML = """<!doctype html>
     .analytics-row-chart {
       min-width: 0;
     }
+    .analytics-sparkline {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+    .analytics-sparkline-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.1;
+    }
     .analytics-row-metrics {
       min-width: 0;
       color: var(--muted);
       font-size: 12px;
       line-height: 1.25;
+    }
+    .analytics-model-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-width: 0;
+    }
+    .model-badge {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 8px;
+      background: var(--lcd);
+      display: inline-flex;
+      align-items: baseline;
+      gap: 5px;
+      line-height: 1.1;
+    }
+    .model-badge span:first-child {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 720;
+      text-transform: uppercase;
+    }
+    .model-badge span:last-child {
+      color: var(--ink);
+      font-size: 11px;
+      font-weight: 760;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .analytics-row-actions {
       display: flex;
@@ -1138,6 +1227,14 @@ INDEX_HTML = """<!doctype html>
         grid-template-columns: 1fr 42px;
         align-items: start;
       }
+      .ac-top {
+        grid-template-columns: minmax(0, 1fr) 46px;
+      }
+      .ac-top .ac-stat-grid {
+        grid-column: 1 / -1;
+        justify-self: stretch;
+        width: 100%;
+      }
       .group-body {
         grid-template-columns: 1fr 1fr;
       }
@@ -1182,14 +1279,14 @@ INDEX_HTML = """<!doctype html>
       <div id="error-strip" class="error-strip" aria-live="polite"><div id="error-track" class="error-track"></div></div>
       <div class="control-grid">
         <section>
-          <div class="section-title"><strong id="zone-count">0</strong><span>Zones</span><span id="zone-active-count" class="count-detail">0 Active</span></div>
+          <div class="section-title"><strong id="zone-count">0/0 Zones</strong></div>
           <div class="zone-toolbar">
             <div class="zone-pages" id="zone-pages"></div>
           </div>
           <div class="groups-board" id="groups"></div>
         </section>
         <section>
-          <div class="section-title"><strong id="ac-count">0</strong><span>AC</span></div>
+          <div class="section-title"><strong id="ac-count">0 ACs</strong></div>
           <div class="ac-selector" id="ac-selector"></div>
           <div class="ac-board" id="acs"></div>
         </section>
@@ -1541,7 +1638,7 @@ INDEX_HTML = """<!doctype html>
         .slice(-36);
       const values = entries.flatMap((point) => [point.actual, point.predicted, point.context]).filter((value) => value !== null);
       if (values.length < 2) {
-        return `<svg class="temp-line" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true"><line class="axis" x1="0" y1="18" x2="120" y2="18"></line></svg>`;
+        return `<div class="analytics-sparkline"><svg class="temp-line" viewBox="0 0 120 34" preserveAspectRatio="none" aria-hidden="true"><line class="axis" x1="0" y1="20" x2="120" y2="20"></line></svg><div class="analytics-sparkline-meta"><span>Actual / Forecast / Outdoor</span><span>${entries.length} Points</span></div></div>`;
       }
       const min = Math.min(...values);
       const max = Math.max(...values);
@@ -1551,7 +1648,7 @@ INDEX_HTML = """<!doctype html>
           const value = point[key];
           if (value === null) return null;
           const x = entries.length === 1 ? 0 : (index / (entries.length - 1)) * 120;
-          const y = 24 - ((value - min) / spread) * 20;
+          const y = 29 - ((value - min) / spread) * 24;
           return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
         })
         .filter(Boolean)
@@ -1559,12 +1656,53 @@ INDEX_HTML = """<!doctype html>
       const actualLine = pathFor("actual");
       const predictionLine = pathFor("predicted");
       const contextLine = pathFor("context");
-      return `<svg class="temp-line" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true">
-        <line class="axis" x1="0" y1="18" x2="120" y2="18"></line>
+      const actualValues = entries.map((point) => point.actual).filter((value) => value !== null);
+      const latestActual = actualValues.length ? temp(actualValues[actualValues.length - 1]) : "-";
+      return `<div class="analytics-sparkline"><svg class="temp-line" viewBox="0 0 120 34" preserveAspectRatio="none" aria-hidden="true">
+        <line class="axis" x1="0" y1="20" x2="120" y2="20"></line>
         ${contextLine ? `<path class="context-line" d="${contextLine}"></path>` : ""}
         ${predictionLine ? `<path class="prediction-line" d="${predictionLine}"></path>` : ""}
         ${actualLine ? `<path d="${actualLine}"></path>` : ""}
-      </svg>`;
+      </svg><div class="analytics-sparkline-meta"><span>Actual / Forecast / Outdoor</span><span>${entries.length} Points / ${escapeHtml(latestActual)}</span></div></div>`;
+    }
+
+    function modelValue(value, digits = 2, suffix = "") {
+      const number = finiteNumber(value);
+      return number === null ? "-" : `${number.toFixed(digits)}${suffix}`;
+    }
+
+    function timeConstantText(alpha) {
+      const value = finiteNumber(alpha);
+      if (value === null || value <= 0) return "-";
+      const hours = 1 / value;
+      return hours >= 10 ? `${Math.round(hours)} h` : `${hours.toFixed(1)} h`;
+    }
+
+    function modelBadge(label, value) {
+      return `<div class="model-badge"><span>${escapeHtml(label)}</span><span>${escapeHtml(value)}</span></div>`;
+    }
+
+    function zoneHasAdaptiveTemperature(group, history, learningZone) {
+      const status = (group || {}).status || {};
+      if (Number.isFinite(Number(status.temperature))) return true;
+      if (learningZone && Number.isFinite(Number(learningZone.last_temperature))) return true;
+      return (Array.isArray(history) ? history : []).some((point) => {
+        if (typeof point === "number") return Number.isFinite(point);
+        return point && Number.isFinite(Number(point.temperature ?? point.room_temperature ?? point.actual ?? point.value));
+      });
+    }
+
+    function adaptiveModelBadges(zone) {
+      const confidence = finiteNumber(zone && zone.confidence);
+      const std = finiteNumber(zone && zone.prediction_std);
+      return [
+        modelBadge("Confidence", confidence === null ? "-" : `${Math.round(confidence * 100)}%`),
+        modelBadge("Error", std === null ? "-" : `${std.toFixed(2)}°`),
+        modelBadge("Time Const", timeConstantText(zone && zone.alpha)),
+        modelBadge("Solar Gain", modelValue(zone && zone.beta_solar, 2)),
+        modelBadge("Drift", modelValue(zone && zone.passive_drift_per_hour, 2, "°/h")),
+        modelBadge("Response", modelValue(zone && zone.active_response_per_hour, 2, "°/h")),
+      ].join("");
     }
 
     function timeText(timer) {
@@ -1579,11 +1717,14 @@ INDEX_HTML = """<!doctype html>
 
     function timerFields(prefix, timer = {}) {
       return `
-        <div class="field"><label>${prefix} Enabled</label><select data-field="${prefix.toLowerCase()}-enabled">
-          <option value="true" ${timer.enabled ? "selected" : ""}>On</option>
-          <option value="false" ${!timer.enabled ? "selected" : ""}>Off</option>
-        </select></div>
-        <div class="field"><label>${prefix} Time</label><input data-field="${prefix.toLowerCase()}-time" type="time" value="${escapeHtml(timeValue(timer))}"></div>`;
+        <div class="timer-block">
+          <div class="timer-block-title">${prefix} Timer</div>
+          <div class="field"><label>Enabled</label><select data-field="${prefix.toLowerCase()}-enabled">
+            <option value="true" ${timer.enabled ? "selected" : ""}>On</option>
+            <option value="false" ${!timer.enabled ? "selected" : ""}>Off</option>
+          </select></div>
+          <div class="field"><label>Time</label><input data-field="${prefix.toLowerCase()}-time" type="time" value="${escapeHtml(timeValue(timer))}"></div>
+        </div>`;
     }
 
     function boolSelect(field, label, value) {
@@ -1900,33 +2041,33 @@ INDEX_HTML = """<!doctype html>
           const zone = Number(id);
           const learningZone = learningZones[String(zone)] || {};
           const progress = Number(learningZone.learning_progress);
-          const confidenceValue = Number(learningZone.confidence);
-          const std = Number(learningZone.prediction_std);
           const plan = plans[String(zone)] || null;
           const history = analyticsHistory[String(zone)] || analyticsHistory[zone] || [];
+          if (!zoneHasAdaptiveTemperature(group, history, learningZone)) return "";
           const badges = [
             learningZone.learn === true ? '<span class="pill cool">Learning</span>' : '<span class="pill">Monitor</span>',
             controlZones.has(zone) ? '<span class="pill on">Control Enabled</span>' : '',
             learningZone.mpc_ready === true ? '<span class="pill cool">MPC Ready</span>' : '<span class="pill warn">Warming</span>',
             learningZone.accelerated_learning === true ? '<span class="pill warn">Fast</span>' : '',
           ].filter(Boolean).join("");
-          const metrics = [
-            Number.isFinite(confidenceValue) ? `Confidence ${Math.round(confidenceValue * 100)}%` : "Confidence -",
+          const state = [
             Number.isFinite(progress) ? `Learning ${Math.round(progress * 100)}%` : "Learning -",
-            `Passive ${Number(learningZone.passive_samples || 0)}`,
+            `Idle ${Number(learningZone.passive_samples || learningZone.idle_samples || 0)}`,
             `Active ${Number(learningZone.active_samples || 0)}`,
-            Number.isFinite(std) ? `Std ${std.toFixed(2)}` : "Std -",
-            Number.isFinite(Number(learningZone.active_response_per_hour)) ? `Response ${Number(learningZone.active_response_per_hour).toFixed(2)}/h` : "",
+            Number.isFinite(Number(learningZone.ekf_updates)) ? `Model Updates ${Number(learningZone.ekf_updates)}` : "",
+            Number.isFinite(Number(learningZone.outside_coupling_per_hour)) ? `Outside ${Number(learningZone.outside_coupling_per_hour).toFixed(2)}/h` : "",
+            learningZone.last_skip_reason ? `Skip ${titleText(learningZone.last_skip_reason)}` : "",
             learningZone.readiness_reason && learningZone.readiness_reason !== "ready" ? titleText(learningZone.readiness_reason) : "",
             plan ? `Plan ${titleText(plan.action || plan.source || "mpc")} ${plan.target ?? "-"}` : "",
           ].filter(Boolean).join(" / ");
           return `<article class="card analytics-row">
             <div class="analytics-row-main">
               <div class="card-title">${escapeHtml(group.name || `Zone ${zone + 1}`)}</div>
+              <div class="analytics-row-metrics">${escapeHtml(state)}</div>
               <div class="tile-foot">${badges}</div>
             </div>
             <div class="analytics-row-chart">${adaptiveSparkline(history)}</div>
-            <div class="analytics-row-metrics">${escapeHtml(metrics)}</div>
+            <div class="analytics-model-badges">${adaptiveModelBadges(learningZone)}</div>
             <div class="analytics-row-actions">
               <button type="button" class="secondary" data-adaptive-model-action="accelerate_zone" data-zone="${escapeHtml(zone)}" data-enabled="${learningZone.accelerated_learning === true ? "false" : "true"}">${learningZone.accelerated_learning === true ? "Normal" : "Fast"}</button>
               <button type="button" class="secondary" data-adaptive-model-action="reset_zone" data-zone="${escapeHtml(zone)}">Reset</button>
@@ -2293,7 +2434,6 @@ INDEX_HTML = """<!doctype html>
       const settings = ac.settings || {};
       const runtime = ac.runtime || {};
       const power = status.power_on === true ? "on" : status.power_on === false ? "off" : "-";
-      const powerLabel = titleText(power);
       const isOn = power === "on";
       const pending = pendingAcs.has(String(id));
       const mode = Number.isInteger(status.mode) ? status.mode : null;
@@ -2327,19 +2467,17 @@ INDEX_HTML = """<!doctype html>
         : "";
       const modes = configuredModeOptions(settings);
       const fans = configuredFanOptions(settings);
-      const modeLabel = (modes.find(([value]) => value === mode) || [mode, modeName(mode)])[1];
-      const fanLabel = (fans.find(([value]) => value === fan) || [fan, fanName(fan)])[1];
       return `
         <article class="ac-panel ${isOn ? "on" : "off"}">
           <div class="ac-top">
             <div>
               <div class="ac-name">${escapeHtml(base.name || `AC ${Number(id) + 1}`)}</div>
-              <div class="muted ac-meta">
-                <span>${escapeHtml(modeLabel)} Mode</span>
-                <span>${escapeHtml(fanLabel)} Fan</span>
-                <span>${escapeHtml(runtimeHoursText(runtime))} Runtime</span>
-                <span class="${isOn ? "pill on ac-state-pill" : "pill ac-state-pill"}">${escapeHtml(powerLabel)}</span>
-              </div>
+            </div>
+            <div class="ac-stat-grid">
+              <div class="ac-stat-pill"><span>Runtime</span><span>${escapeHtml(runtimeHoursText(runtime))}</span></div>
+              <div class="ac-stat-pill"><span>Filter</span><span>-</span></div>
+              <div class="ac-stat-pill"><span>Service</span><span>-</span></div>
+              <div class="ac-stat-pill"><span>Demand</span><span>-</span></div>
             </div>
             <button
               type="button"
@@ -2390,7 +2528,6 @@ INDEX_HTML = """<!doctype html>
       const grouping = group.grouping || {};
       const damper = pct(status.percentage);
       const power = status.power_name || (status.power_code === 1 ? "on" : "off");
-      const powerLabel = titleText(power);
       const isOn = power === "on" || power === "turbo";
       const isSpill = group.spill_configured || status.spill_on;
       const sensorControl = status.sensor_control === true;
@@ -2416,12 +2553,11 @@ INDEX_HTML = """<!doctype html>
       if (!isOn) classes.push("off");
       if (isSpill) classes.push("spill");
       const badges = [];
-      badges.push(`<span class="${isOn ? "pill on" : "pill"}">${escapeHtml(powerLabel)}</span>`);
       if (isSpill) badges.push('<span class="pill warn">Spill</span>');
       if (sensorControl) badges.push('<span class="pill cool">Sensor</span>');
       if (status.low_battery) badges.push('<span class="pill warn">Battery</span>');
       if (status.timer_on) badges.push('<span class="pill">Program</span>');
-      if (power === "turbo" || status.turbo_supported) badges.push('<span class="pill">Turbo</span>');
+      if (power === "turbo") badges.push('<span class="pill">Turbo</span>');
       if (grouping.thermostat_name) badges.push(`<span class="pill">${escapeHtml(grouping.thermostat_name)}</span>`);
       const slider = sensorControl
         ? ""
@@ -2772,14 +2908,14 @@ INDEX_HTML = """<!doctype html>
         const offTimer = timer.off_timer || {};
         const hasTimer = !!(onTimer.enabled || offTimer.enabled);
         return `
-          <article class="card" data-ac-timer="${escapeHtml(id)}">
+          <article class="card ac-timer-card" data-ac-timer="${escapeHtml(id)}">
             <div class="card-title">${escapeHtml(base.name || `AC ${Number(id) + 1}`)}</div>
             <div><span class="${hasTimer ? "pill on" : "pill"}">${escapeHtml(hasTimer ? "Timer Set" : "No Timer")}</span></div>
             <div class="muted">${escapeHtml(status.power_on ? "On" : "Off")} / ${escapeHtml(modeName(status.mode))} / ${escapeHtml(fanName(status.fan))} / ${escapeHtml(temp(status.setpoint))}</div>
             <div class="muted">On ${escapeHtml(timeText(onTimer))} / Off ${escapeHtml(timeText(offTimer))}</div>
             <div class="service-card-body">
               <h3>Timer</h3>
-              <div class="field-grid">${timerFields("On", onTimer)}${timerFields("Off", offTimer)}</div>
+              <div class="timer-stack">${timerFields("On", onTimer)}${timerFields("Off", offTimer)}</div>
               <div class="service-actions"><button type="button" data-program-action="ac-timer-save" data-ac="${escapeHtml(id)}">Save Timer</button></div>
             </div>
           </article>`;
@@ -3088,7 +3224,7 @@ INDEX_HTML = """<!doctype html>
         : "";
 
       const selectedAcRecord = (state.acs || {})[selectedAc] || {};
-      $("ac-count").textContent = String(acEntries.length);
+      $("ac-count").textContent = `${acEntries.length} ${acEntries.length === 1 ? "AC" : "ACs"}`;
       $("acs").innerHTML = acEntries.length
         ? acCard(String(selectedAc), selectedAcRecord, allZoneEntries)
         : '<div class="muted">No AC Data</div>';
@@ -3099,8 +3235,7 @@ INDEX_HTML = """<!doctype html>
       if (zonePage >= pageCount) zonePage = pageCount - 1;
       const pageStart = zonePage * 8;
       const pageEntries = zoneEntries.slice(pageStart, pageStart + 8);
-      $("zone-count").textContent = String(zoneEntries.length);
-      $("zone-active-count").textContent = `${activeZoneCount} Active`;
+      $("zone-count").textContent = `${activeZoneCount}/${zoneEntries.length} Zones`;
       $("zone-pages").innerHTML = pageCount > 1
         ? Array.from({length: pageCount}, (_value, index) => `<button type="button" class="option ${index === zonePage ? "active" : ""}" data-action="zone-page" data-page="${index}">${(index * 8) + 1}-${Math.min((index + 1) * 8, zoneEntries.length)}</button>`).join("")
         : "";
