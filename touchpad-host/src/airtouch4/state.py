@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -22,6 +23,7 @@ class AirTouchState:
     password: dict[str, Any] = field(default_factory=dict)
     last_led: dict[str, Any] = field(default_factory=dict)
     last_command: int | None = None
+    temperature_history_limit: int = 96
 
     def apply_packet(self, packet: AirTouchPacket) -> dict[str, Any]:
         decoded = decode_mainboard_payload(packet.command, packet.payload)
@@ -62,6 +64,7 @@ class AirTouchState:
         elif kind == "group_status_internal":
             for record in decoded.get("records", []):
                 self._merge(self.groups, record.get("group"), {"status": record})
+                self._remember_group_temperature(record)
         elif kind == "set_grouping":
             self._merge(self.groups, decoded.get("group"), {"grouping": decoded})
         elif kind == "grouping":
@@ -190,6 +193,20 @@ class AirTouchState:
         elif status in {"ok", "lost"}:
             current["present"] = True
         current.setdefault("listed", None)
+
+    def _remember_group_temperature(self, record: dict[str, Any]) -> None:
+        group = record.get("group")
+        temperature = record.get("temperature")
+        if not isinstance(group, int) or not isinstance(temperature, (int, float)):
+            return
+        current = self.groups.setdefault(group, {})
+        history = current.setdefault("temperature_history", [])
+        if history and history[-1].get("temperature") == temperature:
+            history[-1]["ts"] = int(time.time())
+            return
+        history.append({"ts": int(time.time()), "temperature": temperature})
+        if len(history) > self.temperature_history_limit:
+            del history[:-self.temperature_history_limit]
 
     def active_groups(self) -> dict[int, dict[str, Any]]:
         count = self.system.get("group_count")

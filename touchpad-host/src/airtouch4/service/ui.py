@@ -15,6 +15,7 @@ INDEX_HTML = """<!doctype html>
       --bg: #f3f6f8;
       --panel: #ffffff;
       --panel-soft: #f8fafb;
+      --panel-deep: #eef4f6;
       --ink: #16212c;
       --muted: #657381;
       --line: #d9e2e8;
@@ -29,12 +30,18 @@ INDEX_HTML = """<!doctype html>
       --header-ink: #ffffff;
       --active-bg: #0f6e8e;
       --active-ink: #ffffff;
+      --shadow: 0 18px 36px rgba(22, 33, 44, .12);
+      --shadow-soft: 0 8px 20px rgba(22, 33, 44, .08);
+      --surface-ring: rgba(15, 110, 142, .18);
+      --glass: rgba(255, 255, 255, .76);
+      --lcd: #f7fbfb;
     }
     body[data-theme="dark"] {
       color-scheme: dark;
       --bg: #10161c;
       --panel: #17212a;
       --panel-soft: #1d2933;
+      --panel-deep: #111a22;
       --ink: #e7eef4;
       --muted: #9babba;
       --line: #33414d;
@@ -49,11 +56,20 @@ INDEX_HTML = """<!doctype html>
       --header-ink: #f3f8fb;
       --active-bg: #57b6d4;
       --active-ink: #071217;
+      --shadow: 0 10px 28px rgba(0, 0, 0, .22);
+      --shadow-soft: 0 4px 14px rgba(0, 0, 0, .18);
+      --surface-ring: rgba(87, 182, 212, .24);
+      --glass: rgba(23, 33, 42, .78);
+      --lcd: #121b22;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      background: var(--bg);
+      background:
+        radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--accent) 16%, transparent) 0, transparent 340px),
+        radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--ok) 10%, transparent) 0, transparent 300px),
+        linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, transparent) 0, transparent 260px),
+        var(--bg);
       color: var(--ink);
       font: 14px/1.42 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
@@ -62,13 +78,17 @@ INDEX_HTML = """<!doctype html>
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 14px;
       align-items: center;
-      padding: 14px 18px 10px;
-      background: var(--header);
+      padding: 16px 18px 12px;
+      background: color-mix(in srgb, var(--header) 88%, black 8%);
       color: var(--header-ink);
-      border-bottom: 3px solid var(--accent);
+      border-bottom: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 5;
     }
-    h1 { margin: 0; font-size: 21px; font-weight: 720; }
-    h2 { margin: 0 0 10px; font-size: 15px; font-weight: 720; }
+    h1 { margin: 0; font-size: 23px; font-weight: 760; }
+    h2 { margin: 0 0 12px; font-size: 16px; font-weight: 760; }
     h3 { margin: 0 0 8px; font-size: 14px; font-weight: 720; }
     .section-title {
       display: flex;
@@ -79,21 +99,29 @@ INDEX_HTML = """<!doctype html>
       font-weight: 720;
     }
     .section-title strong {
-      font-size: 24px;
+      font-size: 23px;
       line-height: 1;
+    }
+    .section-title .count-detail {
+      color: var(--muted);
+      font-size: 23px;
+      line-height: 1;
+      font-weight: 760;
     }
     main {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
       gap: 10px;
-      padding: 14px;
+      padding: 16px;
     }
     section {
-      background: var(--panel);
+      background: color-mix(in srgb, var(--glass) 84%, var(--panel));
       border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 12px;
+      border-radius: 8px;
+      padding: 14px;
       min-width: 0;
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(10px);
     }
     .status {
       display: inline-flex;
@@ -116,7 +144,12 @@ INDEX_HTML = """<!doctype html>
       grid-column: 1 / -1;
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 4px;
+      width: fit-content;
+      padding: 4px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 8px;
+      background: rgba(255,255,255,.06);
     }
     .error-strip {
       display: none;
@@ -134,11 +167,15 @@ INDEX_HTML = """<!doctype html>
       min-width: 100%;
       padding: 6px 10px;
       white-space: nowrap;
-      animation: ticker 26s linear infinite;
+      transform: translateX(0);
+    }
+    .error-track.scrolling {
+      animation: ticker var(--ticker-duration, 48s) linear infinite;
+      will-change: transform;
     }
     @keyframes ticker {
-      from { transform: translateX(100%); }
-      to { transform: translateX(-100%); }
+      from { transform: translateX(var(--ticker-start, 100%)); }
+      to { transform: translateX(var(--ticker-end, -100%)); }
     }
     .header-actions {
       display: flex;
@@ -173,16 +210,17 @@ INDEX_HTML = """<!doctype html>
       text-transform: uppercase;
     }
     .nav button {
-      min-height: 34px;
-      border-color: rgba(255,255,255,.24);
-      background: rgba(255,255,255,.08);
+      min-height: 36px;
+      border-color: transparent;
+      background: transparent;
       color: #fff;
+      border-radius: 6px;
     }
     .nav button.active {
       background: var(--active-bg);
       color: var(--active-ink);
       border-color: var(--active-bg);
-      box-shadow: inset 0 -3px 0 rgba(255,255,255,.35);
+      box-shadow: 0 6px 14px rgba(0,0,0,.18);
     }
     .theme-toggle {
       width: 38px;
@@ -194,31 +232,38 @@ INDEX_HTML = """<!doctype html>
       color: #fff;
       font-size: 18px;
       line-height: 1;
+      border-radius: 8px;
     }
     .view { display: none; }
     .view.active { display: grid; gap: 14px; }
     .subnav {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
+      padding: 4px;
+      width: fit-content;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
     }
     .subnav button {
       border-color: var(--line);
-      background: var(--panel);
+      background: transparent;
       color: var(--ink);
+      border-radius: 6px;
     }
     .subnav button.active {
       border-color: var(--accent);
       background: var(--active-bg);
       color: var(--active-ink);
-      box-shadow: inset 0 -3px 0 rgba(255,255,255,.35);
+      box-shadow: var(--shadow-soft);
     }
     .subview { display: none; }
     .subview.active { display: grid; gap: 14px; }
     .control-grid {
       display: grid;
       grid-template-columns: minmax(500px, 7fr) minmax(310px, 3fr);
-      gap: 14px;
+      gap: 16px;
       align-items: start;
     }
     .control-head {
@@ -236,9 +281,9 @@ INDEX_HTML = """<!doctype html>
     .ac-select-card {
       min-height: 74px;
       border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 9px;
-      background: var(--panel);
+      border-radius: 8px;
+      padding: 10px;
+      background: var(--panel-soft);
       color: var(--ink);
       text-align: left;
       display: grid;
@@ -247,9 +292,9 @@ INDEX_HTML = """<!doctype html>
     }
     .ac-select-card.active {
       border-color: var(--accent);
-      background: var(--accent-soft);
+      background: linear-gradient(135deg, var(--accent-soft), var(--panel));
       color: var(--ink);
-      box-shadow: inset 4px 0 0 var(--accent);
+      box-shadow: inset 4px 0 0 var(--accent), var(--shadow-soft);
     }
     .ac-board {
       display: grid;
@@ -258,35 +303,144 @@ INDEX_HTML = """<!doctype html>
     }
     .ac-panel {
       border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 14px;
-      background: linear-gradient(180deg, var(--panel-soft) 0%, var(--panel) 82%);
+      border-radius: 10px;
+      padding: 18px;
+      background:
+        linear-gradient(160deg, color-mix(in srgb, var(--accent) 8%, transparent) 0%, transparent 42%),
+        var(--panel);
       display: grid;
-      gap: 14px;
-      min-height: 260px;
+      gap: 16px;
+      min-height: 430px;
+      box-shadow: var(--shadow-soft);
     }
     .ac-panel.on {
-      border-color: #87c7b0;
-      background: linear-gradient(180deg, color-mix(in srgb, var(--ok) 11%, var(--panel)) 0%, var(--panel) 82%);
+      border-color: color-mix(in srgb, var(--ok) 54%, var(--line));
+      background:
+        linear-gradient(160deg, color-mix(in srgb, var(--ok) 16%, transparent) 0%, transparent 48%),
+        var(--panel);
+    }
+    .ac-panel.off {
+      background:
+        linear-gradient(160deg, color-mix(in srgb, var(--muted) 12%, transparent) 0%, transparent 48%),
+        color-mix(in srgb, var(--panel) 62%, var(--bg));
+    }
+    .ac-panel.off .thermostat-face,
+    .ac-panel.off .ac-mode-bank,
+    .ac-panel.off .thermostat-stepper {
+      opacity: .58;
     }
     .ac-top {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) 46px;
       gap: 10px;
       align-items: start;
     }
-    .ac-name { font-size: 24px; font-weight: 780; overflow-wrap: anywhere; }
-    .ac-temp {
+    .ac-name { font-size: 26px; font-weight: 780; overflow-wrap: anywhere; }
+    .ac-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      margin-top: 3px;
+    }
+    .ac-state-pill {
+      min-height: 18px;
+      padding: 1px 7px;
+      font-size: 10px;
+      line-height: 1;
+    }
+    .thermostat-face {
+      width: min(260px, 100%);
+      aspect-ratio: 1;
+      margin: 2px auto 4px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+      background:
+        radial-gradient(circle at center, var(--lcd) 0 50%, transparent 51%),
+        conic-gradient(from 225deg, var(--cool) 0 50%, var(--warm) 50% 100%);
+      box-shadow: inset 0 0 0 14px color-mix(in srgb, var(--panel) 76%, transparent), var(--shadow-soft);
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .thermostat-face::after {
+      content: "";
+      position: absolute;
+      inset: 17px;
+      border-radius: inherit;
+      border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+      pointer-events: none;
+    }
+    .thermostat-marker {
+      position: absolute;
+      inset: 18px;
+      border-radius: inherit;
+      transform: rotate(var(--angle));
+      pointer-events: none;
+    }
+    .thermostat-marker::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: -2px;
+      width: 10px;
+      height: 10px;
+      margin-left: -5px;
+      border-radius: 999px;
+      background: var(--marker);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--panel) 82%, transparent);
+    }
+    .thermostat-current::after { width: 8px; height: 8px; margin-left: -4px; }
+    .thermostat-readout {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 4px;
+      text-align: center;
+      justify-items: center;
+    }
+    .thermostat-value {
+      font-size: 56px;
+      line-height: .95;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+    .thermostat-sub {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .thermostat-stepper {
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) 48px;
       gap: 10px;
+      align-items: center;
+    }
+    .thermostat-stepper button {
+      min-height: 48px;
+      border-radius: 999px;
+      padding: 0;
+      font-size: 24px;
+      line-height: 1;
+    }
+    .thermostat-range {
+      text-align: center;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .ac-mode-bank {
+      display: grid;
+      gap: 12px;
     }
     .reading {
       min-width: 0;
       border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 10px;
-      background: var(--panel);
+      border-radius: 8px;
+      padding: 11px;
+      background: var(--lcd);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
     }
     .label {
       color: var(--muted);
@@ -305,11 +459,6 @@ INDEX_HTML = """<!doctype html>
       font-size: 20px;
       font-weight: 740;
     }
-    .ac-controls {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
     .control-row {
       display: flex;
       flex-wrap: wrap;
@@ -318,8 +467,8 @@ INDEX_HTML = """<!doctype html>
     }
     .groups-board {
       display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+      gap: 12px;
     }
     .zone-toolbar {
       display: flex;
@@ -335,22 +484,38 @@ INDEX_HTML = """<!doctype html>
       gap: 8px;
     }
     .group-tile {
-      min-height: 108px;
+      min-height: 214px;
       border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 10px;
-      background: var(--panel);
+      border-radius: 10px;
+      padding: 12px;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--muted) 12%, transparent) 0 4px, transparent 4px),
+        var(--panel);
       display: grid;
-      grid-template-columns: minmax(136px, .58fr) 44px minmax(240px, 1fr) minmax(112px, auto);
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        "head power"
+        "temp temp"
+        "actions actions"
+        "damper damper";
       gap: 10px;
-      align-items: center;
+      align-items: start;
+      box-shadow: var(--shadow-soft);
+      position: relative;
+      overflow: hidden;
     }
     .group-tile.on {
-      border-color: #86c6b0;
-      background: linear-gradient(180deg, color-mix(in srgb, var(--ok) 10%, var(--panel)) 0%, var(--panel) 76%);
+      border-color: color-mix(in srgb, var(--ok) 50%, var(--line));
+      background:
+        linear-gradient(180deg, var(--ok) 0 4px, transparent 4px),
+        linear-gradient(135deg, color-mix(in srgb, var(--ok) 14%, transparent) 0%, transparent 46%),
+        var(--panel);
+      box-shadow: 0 0 0 1px var(--surface-ring), var(--shadow-soft);
     }
     .group-tile.off {
-      background: color-mix(in srgb, var(--panel) 72%, var(--bg));
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--muted) 28%, transparent) 0 4px, transparent 4px),
+        color-mix(in srgb, var(--panel) 60%, var(--bg));
     }
     .group-tile.off .group-name,
     .group-tile.off .group-num {
@@ -358,46 +523,53 @@ INDEX_HTML = """<!doctype html>
     }
     .group-tile.off .group-body,
     .group-tile.off .tile-foot {
-      opacity: .48;
+      opacity: .58;
     }
     .group-tile.spill {
-      border-color: #dec879;
-      background: linear-gradient(180deg, color-mix(in srgb, var(--warn) 14%, var(--panel)) 0%, var(--panel) 76%);
+      border-color: color-mix(in srgb, var(--warn) 56%, var(--line));
+      background:
+        linear-gradient(180deg, var(--warn) 0 4px, transparent 4px),
+        linear-gradient(135deg, color-mix(in srgb, var(--warn) 16%, transparent) 0%, transparent 46%),
+        var(--panel);
     }
     .group-head {
+      grid-area: head;
       display: grid;
-      gap: 3px;
+      gap: 7px;
       align-items: center;
+      min-width: 0;
     }
     .group-name {
-      font-size: 16px;
+      font-size: 18px;
       font-weight: 780;
       overflow-wrap: anywhere;
     }
     .group-num {
       color: var(--muted);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 650;
       text-transform: uppercase;
     }
     .group-body {
+      grid-area: temp;
       display: grid;
-      grid-template-columns: minmax(82px, .75fr) minmax(82px, .75fr) minmax(128px, 1.35fr);
+      grid-template-columns: 1fr 1fr;
       gap: 8px;
       align-content: center;
       align-items: center;
     }
     .group-body .reading {
-      padding: 8px;
-      min-height: 66px;
+      padding: 9px;
+      min-height: 74px;
       height: 100%;
     }
     .power-button {
-      width: 42px;
-      height: 42px;
-      min-height: 42px;
-      max-width: 42px;
-      flex: 0 0 42px;
+      grid-area: power;
+      width: 46px;
+      height: 46px;
+      min-height: 46px;
+      max-width: 46px;
+      flex: 0 0 46px;
       padding: 0;
       border-radius: 999px;
       display: inline-flex;
@@ -407,6 +579,7 @@ INDEX_HTML = """<!doctype html>
       white-space: nowrap;
       font-size: 22px;
       overflow: hidden;
+      box-shadow: inset 0 -2px 0 rgba(0,0,0,.14), var(--shadow-soft);
     }
     .power-button.on {
       background: var(--ok);
@@ -414,33 +587,78 @@ INDEX_HTML = """<!doctype html>
       color: #fff;
     }
     .power-button.off {
-      background: var(--panel);
+      background: var(--panel-deep);
       border-color: var(--line);
       color: var(--muted);
     }
+    .ac-top .power-button {
+      grid-area: auto;
+    }
     .group-body .big {
-      font-size: 24px;
+      font-size: 27px;
     }
     .group-body .small-value {
-      font-size: 18px;
+      font-size: 20px;
     }
     .damper { min-width: 0; }
+    .group-tile .damper {
+      grid-area: damper;
+    }
+    .damper .label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .history-strip {
+      margin-top: 7px;
+      display: grid;
+      gap: 4px;
+    }
+    .temp-line {
+      width: 100%;
+      height: 24px;
+      display: block;
+      overflow: visible;
+    }
+    .temp-line path {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .temp-line .area {
+      fill: color-mix(in srgb, var(--accent) 13%, transparent);
+      stroke: none;
+    }
+    .temp-line .axis {
+      stroke: var(--line);
+      stroke-width: 1;
+    }
+    .history-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.1;
+    }
     .bar {
       height: 8px;
       border-radius: 999px;
-      background: #e6ebef;
+      background: color-mix(in srgb, var(--line) 70%, var(--panel-deep));
       overflow: hidden;
       margin-top: 5px;
     }
     .bar-fill {
       height: 100%;
       width: 0%;
-      background: var(--accent);
+      background: linear-gradient(90deg, var(--accent), var(--ok));
     }
     .zone-slider {
       width: 100%;
       accent-color: var(--accent);
-      margin: 8px 0 0;
+      margin: 10px 0 0;
     }
     .tile-foot {
       display: flex;
@@ -450,13 +668,14 @@ INDEX_HTML = """<!doctype html>
       align-items: center;
     }
     .tile-actions {
+      grid-area: actions;
       display: grid;
       grid-template-columns: repeat(2, minmax(48px, 1fr));
       gap: 8px;
       align-items: center;
-      min-width: 112px;
+      min-width: 0;
     }
-    .tile-actions button { padding-inline: 8px; }
+    .tile-actions button { padding-inline: 8px; min-height: 38px; }
     .tile-actions .wide-action { grid-column: 1 / -1; }
     .pill {
       display: inline-flex;
@@ -467,7 +686,7 @@ INDEX_HTML = """<!doctype html>
       border-radius: 999px;
       border: 1px solid var(--line);
       color: var(--muted);
-      background: var(--panel);
+      background: color-mix(in srgb, var(--panel-soft) 70%, transparent);
       font-size: 12px;
       font-weight: 680;
       white-space: nowrap;
@@ -478,9 +697,9 @@ INDEX_HTML = """<!doctype html>
     button {
       min-height: 34px;
       border: 1px solid var(--accent);
-      border-radius: 5px;
+      border-radius: 7px;
       padding: 5px 12px;
-      background: var(--accent);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 92%, white 8%), var(--accent));
       color: #fff;
       font: inherit;
       font-weight: 720;
@@ -490,19 +709,19 @@ INDEX_HTML = """<!doctype html>
     button:disabled { cursor: progress; opacity: .62; }
     button.secondary {
       border-color: var(--line);
-      background: var(--panel);
+      background: var(--panel-soft);
       color: var(--ink);
     }
     button.option {
       border-color: var(--line);
-      background: var(--panel);
+      background: var(--panel-soft);
       color: var(--ink);
     }
     button.option.active {
       border-color: var(--accent);
-      background: var(--active-bg);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--active-bg) 92%, white 8%), var(--active-bg));
       color: var(--active-ink);
-      box-shadow: inset 0 -3px 0 rgba(255,255,255,.35);
+      box-shadow: var(--shadow-soft);
     }
     .split {
       display: grid;
@@ -516,9 +735,9 @@ INDEX_HTML = """<!doctype html>
     }
     .card {
       border: 1px solid var(--line);
-      border-radius: 6px;
+      border-radius: 8px;
       padding: 10px;
-      background: var(--panel-soft);
+      background: color-mix(in srgb, var(--panel-soft) 84%, var(--panel));
       min-height: 96px;
       display: grid;
       gap: 8px;
@@ -622,36 +841,42 @@ INDEX_HTML = """<!doctype html>
       .service-grid {
         grid-template-columns: 1fr;
       }
-      .group-tile {
-        grid-template-columns: minmax(128px, .58fr) 44px minmax(210px, 1fr);
+      .groups-board {
+        grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
       }
-      .group-body {
-        grid-template-columns: minmax(82px, .75fr) minmax(82px, .75fr) minmax(128px, 1.35fr);
-      }
-      .tile-actions { grid-column: 3; }
     }
     @media (max-width: 620px) {
       header { grid-template-columns: 1fr; }
       main { padding: 10px; gap: 10px; }
       section { padding: 10px; }
+      .error-strip {
+        max-height: 86px;
+        overflow: auto;
+      }
+      .error-track {
+        animation: none;
+        transform: none;
+        white-space: normal;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
       .group-tile {
-        grid-template-columns: minmax(0, 1fr) 42px;
+        grid-template-columns: 1fr 42px;
         align-items: start;
       }
-      .ac-temp,
-      .ac-controls,
       .group-body {
         grid-template-columns: 1fr 1fr;
       }
-      .group-body,
       .tile-actions {
-        grid-column: 1 / -1;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
-      .tile-actions {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+      .groups-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .thermostat-face { width: min(230px, 100%); }
+    }
+    @media (max-width: 380px) {
+      .groups-board {
+        grid-template-columns: 1fr;
       }
-      .damper { grid-column: 1 / -1; }
-      .groups-board { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -677,14 +902,14 @@ INDEX_HTML = """<!doctype html>
       <div id="error-strip" class="error-strip" aria-live="polite"><div id="error-track" class="error-track"></div></div>
       <div class="control-grid">
         <section>
-          <div class="section-title"><strong id="zone-count">0</strong><span>Zones</span></div>
+          <div class="section-title"><strong id="zone-count">0</strong><span>Zones</span><span id="zone-active-count" class="count-detail">0 active</span></div>
           <div class="zone-toolbar">
             <div class="zone-pages" id="zone-pages"></div>
           </div>
           <div class="groups-board" id="groups"></div>
         </section>
         <section>
-          <h2>Air Conditioner</h2>
+          <div class="section-title"><strong id="ac-count">0</strong><span>AC</span></div>
           <div class="ac-selector" id="ac-selector"></div>
           <div class="ac-board" id="acs"></div>
         </section>
@@ -879,6 +1104,33 @@ INDEX_HTML = """<!doctype html>
       return value === undefined || value === null ? "-" : `${value} C`;
     }
 
+    function temperatureHistoryLine(history = []) {
+      const points = history
+        .map((entry) => Number(entry.temperature))
+        .filter((value) => Number.isFinite(value))
+        .slice(-24);
+      if (points.length < 2) {
+        return `<div class="history-strip"><svg class="temp-line" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true"><line class="axis" x1="0" y1="18" x2="120" y2="18"></line></svg><div class="history-meta"><span>History</span><span>${points.length ? temp(points[0]) : "-"}</span></div></div>`;
+      }
+      const min = Math.min(...points);
+      const max = Math.max(...points);
+      const spread = Math.max(1, max - min);
+      const coords = points.map((value, index) => {
+        const x = points.length === 1 ? 0 : (index / (points.length - 1)) * 120;
+        const y = 24 - ((value - min) / spread) * 20;
+        return [x, y];
+      });
+      const line = coords.map(([x, y], index) => `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+      const area = `${line} L 120 27 L 0 27 Z`;
+      return `<div class="history-strip">
+        <svg class="temp-line" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true">
+          <path class="area" d="${area}"></path>
+          <path d="${line}"></path>
+        </svg>
+        <div class="history-meta"><span>${escapeHtml(temp(points[0]))}</span><span>${escapeHtml(temp(points[points.length - 1]))}</span></div>
+      </div>`;
+    }
+
     function timeText(timer) {
       return timer && timer.enabled ? `${timer.hour}:${String(timer.minute).padStart(2, "0")}` : "-";
     }
@@ -1008,6 +1260,27 @@ INDEX_HTML = """<!doctype html>
       const track = $("error-track");
       strip.classList.toggle("active", alerts.length > 0);
       track.innerHTML = alerts.map((alert) => `<span>${escapeHtml(alert)}</span>`).join("");
+      requestAnimationFrame(updateAlertTicker);
+    }
+
+    function updateAlertTicker() {
+      const strip = $("error-strip");
+      const track = $("error-track");
+      if (!strip || !track || !strip.classList.contains("active")) return;
+      track.classList.remove("scrolling");
+      track.style.removeProperty("--ticker-duration");
+      track.style.removeProperty("--ticker-start");
+      track.style.removeProperty("--ticker-end");
+      if (window.matchMedia("(max-width: 620px)").matches) return;
+      const stripWidth = strip.clientWidth;
+      const trackWidth = track.scrollWidth;
+      if (trackWidth <= stripWidth + 16) return;
+      const distance = stripWidth + trackWidth;
+      const seconds = Math.max(32, Math.min(110, Math.round(distance / 42)));
+      track.style.setProperty("--ticker-duration", `${seconds}s`);
+      track.style.setProperty("--ticker-start", `${stripWidth}px`);
+      track.style.setProperty("--ticker-end", `-${trackWidth}px`);
+      track.classList.add("scrolling");
     }
 
     function renderWeather(integrations) {
@@ -1031,12 +1304,34 @@ INDEX_HTML = """<!doctype html>
       chip.classList.add("active");
     }
 
-    function renderIndoor(integrations) {
+    function averageZoneTemperature(state, {activeOnly = false} = {}) {
+      const entries = Object.entries((state && (state.active_groups || state.groups)) || {});
+      const values = entries
+        .map(([_id, group]) => group.status || {})
+        .filter((status) => {
+          const active = status.power_name === "on" || status.power_name === "turbo";
+          return status.has_sensor === true && Number.isFinite(Number(status.temperature)) && (!activeOnly || active);
+        })
+        .map((status) => Number(status.temperature));
+      if (!values.length) return null;
+      return values.reduce((sum, value) => sum + value, 0) / values.length;
+    }
+
+    function renderIndoor(integrations, state) {
       const chip = $("indoor-chip");
       const indoor = integrations && integrations.indoor && integrations.indoor.state;
       if (!indoor || (indoor.temperature === null && indoor.temperature === undefined && indoor.humidity === null && indoor.humidity === undefined)) {
-        chip.classList.remove("active");
-        chip.textContent = "";
+        const average = averageZoneTemperature(state);
+        if (average === null) {
+          chip.classList.remove("active");
+          chip.textContent = "";
+          return;
+        }
+        chip.innerHTML = [
+          '<span class="chip-label">Indoor</span>',
+          `<span>${escapeHtml(average.toFixed(1))} C</span>`
+        ].join(" ");
+        chip.classList.add("active");
         return;
       }
       const tempUnit = indoor.temperature_unit || "C";
@@ -1123,6 +1418,11 @@ INDEX_HTML = """<!doctype html>
       return entries;
     }
 
+    function selectedAcRecordName(state, acId) {
+      const ac = (state.acs || {})[acId] || {};
+      return (ac.base || {}).name || `AC ${Number(acId) + 1}`;
+    }
+
     function zoneEntriesForAc(state, acId) {
       const allGroups = state.active_groups || state.groups || {};
       const entries = Object.entries(allGroups).sort(([a], [b]) => Number(a) - Number(b));
@@ -1150,7 +1450,104 @@ INDEX_HTML = """<!doctype html>
       el.lastElementChild.textContent = health.ok ? "Running" : text(health.error, text(health.status, "Error"));
     }
 
-    function acCard(id, ac) {
+    function finiteNumber(value) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : null;
+    }
+
+    function averageNumbers(values) {
+      const numeric = values.map(finiteNumber).filter((value) => value !== null);
+      if (!numeric.length) return null;
+      return numeric.reduce((sum, value) => sum + value, 0) / numeric.length;
+    }
+
+    function groupIsActive(group) {
+      const status = (group || {}).status || {};
+      return status.power_name === "on" || status.power_name === "turbo" || status.power_code === 1;
+    }
+
+    function configuredModeOptions(settings) {
+      const modeFlags = (settings || {}).modes || {};
+      const options = [
+        [0, "Auto", "auto"],
+        [1, "Heat", "heat"],
+        [2, "Dry", "dry"],
+        [3, "Fan", "fan"],
+        [4, "Cool", "cool"],
+      ];
+      const configured = options.filter(([_value, _label, key]) => modeFlags[key] === true);
+      return configured.length ? configured : options;
+    }
+
+    function configuredFanOptions(settings) {
+      const values = (settings || {}).fan_values || {};
+      const options = [
+        ["auto", "Auto", 0],
+        ["quiet", "Quiet", null],
+        ["low", "Low", 1],
+        ["medium", "Med", 2],
+        ["high", "High", 3],
+        ["powerful", "Powerful", null],
+        ["turbo", "Turbo", null],
+      ];
+      const seen = new Set();
+      const configured = [];
+      options.forEach(([key, label, fallback]) => {
+        const value = finiteNumber(values[key]);
+        const fanValue = value !== null && value > 0 ? value : fallback;
+        if (fanValue === null || seen.has(fanValue)) return;
+        seen.add(fanValue);
+        configured.push([fanValue, label, key]);
+      });
+      return configured.length ? configured : [[0, "Auto"], [1, "Low"], [2, "Med"], [3, "High"]];
+    }
+
+    function deriveAcThermostat(ac, zoneEntries) {
+      const status = ac.status || {};
+      const settings = ac.settings || {};
+      const min = finiteNumber(settings.min_setpoint) ?? 16;
+      const max = finiteNumber(settings.max_setpoint) ?? 30;
+      const activeGroups = (zoneEntries || []).map(([_id, group]) => group).filter(groupIsActive);
+      const activeSensorGroups = activeGroups
+        .map((group) => group.status || {})
+        .filter((zoneStatus) => zoneStatus.has_sensor === true);
+      const activeSetpoint = averageNumbers(
+        activeSensorGroups
+          .filter((zoneStatus) => zoneStatus.sensor_control === true)
+          .map((zoneStatus) => zoneStatus.setpoint)
+      );
+      const activeTemperature = averageNumbers(activeSensorGroups.map((zoneStatus) => zoneStatus.temperature));
+      const mappedSensorTemperature = averageNumbers(
+        (zoneEntries || [])
+          .map(([_id, group]) => (group.status || {}))
+          .filter((zoneStatus) => zoneStatus.has_sensor === true && zoneStatus.sensor_control === true)
+          .map((zoneStatus) => zoneStatus.temperature)
+      );
+      const anyTemperature = averageNumbers(
+        (zoneEntries || [])
+          .map(([_id, group]) => (group.status || {}))
+          .filter((zoneStatus) => zoneStatus.has_sensor === true)
+          .map((zoneStatus) => zoneStatus.temperature)
+      );
+      const statusSetpoint = finiteNumber(status.setpoint);
+      const statusTemperature = finiteNumber(status.sensor_temp ?? status.temperature ?? status.current_temp);
+      return {
+        min,
+        max,
+        setpoint: activeSetpoint ?? statusSetpoint,
+        current: activeTemperature ?? mappedSensorTemperature ?? anyTemperature ?? statusTemperature,
+        source: activeSetpoint !== null ? "active_zones" : mappedSensorTemperature !== null ? "mapped_zones" : anyTemperature !== null ? "zone_average" : "ac_status",
+      };
+    }
+
+    function thermostatAngle(value, min, max) {
+      const numeric = finiteNumber(value);
+      if (numeric === null || max <= min) return "-135deg";
+      const bounded = Math.min(max, Math.max(min, numeric));
+      return `${-135 + ((bounded - min) / (max - min)) * 270}deg`;
+    }
+
+    function acCard(id, ac, zoneEntries) {
       const status = ac.status || {};
       const base = ac.base || {};
       const settings = ac.settings || {};
@@ -1159,40 +1556,63 @@ INDEX_HTML = """<!doctype html>
       const pending = pendingAcs.has(String(id));
       const mode = Number.isInteger(status.mode) ? status.mode : null;
       const fan = Number.isInteger(status.fan) ? status.fan : null;
-      const setpoint = Number.isInteger(status.setpoint) ? status.setpoint : null;
-      const modes = [[0, "Auto"], [1, "Heat"], [2, "Dry"], [3, "Fan"], [4, "Cool"]];
-      const fans = [[0, "Auto"], [1, "Low"], [2, "Med"], [3, "High"]];
+      const thermostat = deriveAcThermostat(ac, zoneEntries);
+      const setpoint = thermostat.setpoint === null ? null : Math.round(thermostat.setpoint);
+      const current = thermostat.current === null ? null : thermostat.current;
+      const rangeText = `${thermostat.min}-${thermostat.max} C range`;
+      const currentText = current === null ? "-" : `${current.toFixed(1)} C`;
+      const setpointText = setpoint === null ? "-" : String(setpoint);
+      const setMarker = setpoint === null ? "" : `<span class="thermostat-marker thermostat-set" style="--angle:${thermostatAngle(setpoint, thermostat.min, thermostat.max)};--marker:var(--warm)" title="Set ${escapeHtml(setpointText)} C"></span>`;
+      const currentMarker = current === null ? "" : `<span class="thermostat-marker thermostat-current" style="--angle:${thermostatAngle(current, thermostat.min, thermostat.max)};--marker:var(--cool)" title="Current ${escapeHtml(currentText)}"></span>`;
+      const modes = configuredModeOptions(settings);
+      const fans = configuredFanOptions(settings);
+      const modeLabel = (modes.find(([value]) => value === mode) || [mode, modeName(mode)])[1];
+      const fanLabel = (fans.find(([value]) => value === fan) || [fan, fanName(fan)])[1];
       return `
-        <article class="ac-panel ${isOn ? "on" : ""}">
+        <article class="ac-panel ${isOn ? "on" : "off"}">
           <div class="ac-top">
             <div>
               <div class="ac-name">${escapeHtml(base.name || `AC ${Number(id) + 1}`)}</div>
-              <div class="muted">${escapeHtml(modeName(mode))} mode, ${escapeHtml(fanName(fan))} fan</div>
+              <div class="muted ac-meta">
+                <span>${escapeHtml(modeLabel)} mode</span>
+                <span>${escapeHtml(fanLabel)} fan</span>
+                <span class="${isOn ? "pill on ac-state-pill" : "pill ac-state-pill"}">${escapeHtml(power)}</span>
+              </div>
             </div>
-            <span class="${isOn ? "pill on" : "pill"}">${escapeHtml(power)}</span>
+            <button
+              type="button"
+              class="power-button ${isOn ? "on" : "off"}"
+              data-action="ac-status"
+              data-ac="${escapeHtml(id)}"
+              data-power-on="${isOn ? "false" : "true"}"
+              aria-label="${escapeHtml(isOn ? "Turn AC off" : "Turn AC on")}"
+              title="${escapeHtml(isOn ? "Turn AC off" : "Turn AC on")}"
+              ${pending ? "disabled" : ""}
+            >${pending ? "..." : "&#9211;"}</button>
           </div>
-          <div class="ac-temp">
-            <div class="reading">
-              <div class="label">Setpoint</div>
-              <div class="big">${escapeHtml(temp(setpoint))}</div>
+          <div class="thermostat-face">
+            ${currentMarker}
+            ${setMarker}
+            <div class="thermostat-readout">
+              <div class="thermostat-sub">Setpoint</div>
+              <div class="thermostat-value">${escapeHtml(setpointText)}</div>
+              <div class="thermostat-sub">Now ${escapeHtml(currentText)}</div>
             </div>
-            <div class="reading">
-              <div class="label">Range</div>
-              <div class="small-value">${escapeHtml(text(settings.min_setpoint))}-${escapeHtml(text(settings.max_setpoint))} C</div>
+          </div>
+          <div class="thermostat-stepper">
+            <button type="button" class="secondary" data-action="ac-status" data-ac="${escapeHtml(id)}" data-setpoint="${setpoint === null ? "" : setpoint - 1}" ${pending || setpoint === null ? "disabled" : ""}>-</button>
+            <div class="thermostat-range">${escapeHtml(rangeText)}</div>
+            <button type="button" class="secondary" data-action="ac-status" data-ac="${escapeHtml(id)}" data-setpoint="${setpoint === null ? "" : setpoint + 1}" ${pending || setpoint === null ? "disabled" : ""}>+</button>
+          </div>
+          <div class="ac-mode-bank">
+            <div>
+              <div class="label">Mode</div>
+              <div class="control-row">${modes.map(([value, label]) => `<button type="button" class="option ${mode === value ? "active" : ""}" data-action="ac-status" data-ac="${escapeHtml(id)}" data-mode="${value}" ${pending ? "disabled" : ""}>${label}</button>`).join("")}</div>
             </div>
-          </div>
-          <div>
-            <div class="label">Mode</div>
-            <div class="control-row">${modes.map(([value, label]) => `<button type="button" class="option ${mode === value ? "active" : ""}" data-action="ac-status" data-ac="${escapeHtml(id)}" data-mode="${value}" ${pending ? "disabled" : ""}>${label}</button>`).join("")}</div>
-          </div>
-          <div>
-            <div class="label">Fan</div>
-            <div class="control-row">${fans.map(([value, label]) => `<button type="button" class="option ${fan === value ? "active" : ""}" data-action="ac-status" data-ac="${escapeHtml(id)}" data-fan="${value}" ${pending ? "disabled" : ""}>${label}</button>`).join("")}</div>
-          </div>
-          <div class="ac-controls">
-            <button type="button" data-action="ac-status" data-ac="${escapeHtml(id)}" data-power-on="${isOn ? "false" : "true"}" ${pending ? "disabled" : ""}>${escapeHtml(pending ? "Sending" : (isOn ? "Turn off" : "Turn on"))}</button>
-            <button type="button" class="secondary" data-action="ac-status" data-ac="${escapeHtml(id)}" data-setpoint="${setpoint === null ? "" : setpoint + 1}" ${pending || setpoint === null ? "disabled" : ""}>Set +</button>
-            <button type="button" class="secondary" data-action="ac-status" data-ac="${escapeHtml(id)}" data-setpoint="${setpoint === null ? "" : setpoint - 1}" ${pending || setpoint === null ? "disabled" : ""}>Set -</button>
+            <div>
+              <div class="label">Fan</div>
+              <div class="control-row">${fans.map(([value, label]) => `<button type="button" class="option ${fan === value ? "active" : ""}" data-action="ac-status" data-ac="${escapeHtml(id)}" data-fan="${value}" ${pending ? "disabled" : ""}>${label}</button>`).join("")}</div>
+            </div>
           </div>
         </article>`;
     }
@@ -1221,6 +1641,7 @@ INDEX_HTML = """<!doctype html>
       const percentage = damper === null ? null : damper;
       const pending = pendingGroups.has(String(id));
       const roomTemp = status.has_sensor ? temp(status.temperature) : "-";
+      const history = temperatureHistoryLine(group.temperature_history || []);
       const valueLabel = !isOn
         ? "OFF"
         : sensorControl
@@ -1241,7 +1662,7 @@ INDEX_HTML = """<!doctype html>
       if (power === "turbo" || status.turbo_supported) badges.push('<span class="pill">turbo</span>');
       if (grouping.thermostat_name) badges.push(`<span class="pill">${escapeHtml(grouping.thermostat_name)}</span>`);
       const slider = sensorControl
-        ? `<input class="zone-slider" type="range" min="16" max="30" step="1" value="${setpoint === null ? 23 : setpoint}" data-action="group-setpoint" data-group="${escapeHtml(id)}" ${pending || setpoint === null || !isOn ? "disabled" : ""}>`
+        ? ""
         : `<input class="zone-slider" type="range" min="0" max="100" step="5" value="${percentage === null ? 0 : percentage}" data-action="group-percentage" data-group="${escapeHtml(id)}" ${pending || percentage === null || !isOn ? "disabled" : ""}>`;
       const valueButtons = sensorControl
         ? `
@@ -1271,7 +1692,7 @@ INDEX_HTML = """<!doctype html>
             aria-label="${escapeHtml(isOn ? "Turn zone off" : "Turn zone on")}"
             title="${escapeHtml(isOn ? "Turn zone off" : "Turn zone on")}"
             ${pending ? "disabled" : ""}
-          >${pending ? "..." : "⏻"}</button>
+          >${pending ? "..." : "&#9211;"}</button>
           <div class="group-body">
             <div class="reading">
               <div class="label">Room</div>
@@ -1282,11 +1703,12 @@ INDEX_HTML = """<!doctype html>
               <div class="small-value">${escapeHtml(valueLabel)}</div>
               <div class="muted">${escapeHtml(status.has_sensor ? "mapped" : "no sensor")}</div>
             </div>
-            <div class="damper">
-              <div class="label">Damper</div>
-              <div class="bar"><div class="bar-fill" style="width:${damper === null ? 0 : damper}%"></div></div>
-              ${slider}
-            </div>
+          </div>
+          <div class="damper">
+            <div class="label"><span>Damper</span><span>${escapeHtml(damper === null ? "-" : `${damper}%`)}</span></div>
+            <div class="bar"><div class="bar-fill" style="width:${damper === null ? 0 : damper}%"></div></div>
+            ${slider}
+            ${history}
           </div>
           <div class="tile-actions">
             ${valueButtons}
@@ -1672,9 +2094,14 @@ INDEX_HTML = """<!doctype html>
       $("app-title").textContent = detectAirTouchModel(state);
       renderAlerts(collectAlerts(controller, state, integrations, transactions));
       renderWeather(integrations);
-      renderIndoor(integrations);
+      renderIndoor(integrations, state);
       const acEntries = visibleAcs(state);
       if (!acEntries.some(([id]) => Number(id) === selectedAc)) selectedAc = Number(acEntries[0] && acEntries[0][0]) || 0;
+      const allZoneEntries = zoneEntriesForAc(state, selectedAc);
+      const activeZoneCount = allZoneEntries.filter(([_id, group]) => {
+        const status = group.status || {};
+        return status.power_name === "on" || status.power_name === "turbo";
+      }).length;
 
       $("metrics").innerHTML = [
         metric("Transport", config.transport),
@@ -1690,18 +2117,19 @@ INDEX_HTML = """<!doctype html>
         : "";
 
       const selectedAcRecord = (state.acs || {})[selectedAc] || {};
+      $("ac-count").textContent = String(acEntries.length);
       $("acs").innerHTML = acEntries.length
-        ? acCard(String(selectedAc), selectedAcRecord)
+        ? acCard(String(selectedAc), selectedAcRecord, allZoneEntries)
         : '<div class="muted">No AC data</div>';
 
       const groups = state.active_groups || state.groups || {};
-      const zoneEntries = zoneEntriesForAc(state, selectedAc);
+      const zoneEntries = allZoneEntries;
       const pageCount = Math.max(1, Math.ceil(zoneEntries.length / 8));
       if (zonePage >= pageCount) zonePage = pageCount - 1;
       const pageStart = zonePage * 8;
       const pageEntries = zoneEntries.slice(pageStart, pageStart + 8);
-      const selectedBase = selectedAcRecord.base || {};
       $("zone-count").textContent = String(zoneEntries.length);
+      $("zone-active-count").textContent = `${activeZoneCount} active`;
       $("zone-pages").innerHTML = pageCount > 1
         ? Array.from({length: pageCount}, (_value, index) => `<button type="button" class="option ${index === zonePage ? "active" : ""}" data-action="zone-page" data-page="${index}">${(index * 8) + 1}-${Math.min((index + 1) * 8, zoneEntries.length)}</button>`).join("")
         : "";
@@ -2150,6 +2578,7 @@ INDEX_HTML = """<!doctype html>
     }
 
     applyTheme();
+    window.addEventListener("resize", () => requestAnimationFrame(updateAlertTicker));
     refresh();
     setInterval(refresh, 1500);
   </script>
