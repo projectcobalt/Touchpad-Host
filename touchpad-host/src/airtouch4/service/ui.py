@@ -1320,24 +1320,20 @@ INDEX_HTML = """<!doctype html>
     function renderIndoor(integrations, state) {
       const chip = $("indoor-chip");
       const indoor = integrations && integrations.indoor && integrations.indoor.state;
-      if (!indoor || (indoor.temperature === null && indoor.temperature === undefined && indoor.humidity === null && indoor.humidity === undefined)) {
-        const average = averageZoneTemperature(state);
-        if (average === null) {
-          chip.classList.remove("active");
-          chip.textContent = "";
-          return;
-        }
-        chip.innerHTML = [
-          '<span class="chip-label">Indoor</span>',
-          `<span>${escapeHtml(average.toFixed(1))} C</span>`
-        ].join(" ");
-        chip.classList.add("active");
+      const average = averageZoneTemperature(state);
+      const hasIndoorTemp = indoor && indoor.temperature !== undefined && indoor.temperature !== null;
+      const hasIndoorHumidity = indoor && indoor.humidity !== undefined && indoor.humidity !== null;
+      if (!hasIndoorTemp && average === null && !hasIndoorHumidity) {
+        chip.classList.remove("active");
+        chip.textContent = "";
         return;
       }
-      const tempUnit = indoor.temperature_unit || "C";
-      const humidityUnit = indoor.humidity_unit || "%";
-      const tempText = indoor.temperature === undefined || indoor.temperature === null ? "" : `${indoor.temperature} ${tempUnit}`;
-      const humidityText = indoor.humidity === undefined || indoor.humidity === null ? "" : `${indoor.humidity} ${humidityUnit}`;
+      const tempUnit = (indoor && indoor.temperature_unit) || "C";
+      const humidityUnit = (indoor && indoor.humidity_unit) || "%";
+      const tempText = hasIndoorTemp
+        ? `${indoor.temperature} ${tempUnit}`
+        : (average === null ? "" : `${average.toFixed(1)} C`);
+      const humidityText = hasIndoorHumidity ? `${indoor.humidity} ${humidityUnit}` : "";
       chip.innerHTML = [
         '<span class="chip-label">Indoor</span>',
         tempText ? `<span>${escapeHtml(tempText)}</span>` : "",
