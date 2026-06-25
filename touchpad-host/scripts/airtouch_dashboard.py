@@ -33,6 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--show-skipped", action="store_true", help="Include non-touchscreen/client/internal traffic in recent events.")
     parser.add_argument("--show-hex", action="store_true", help="Append payload hex to recent event lines.")
     parser.add_argument("--passive", action="store_true", help="Sniff only. Do not emulate a fresh touchpad boot/init.")
+    parser.add_argument("--protocol", default="auto", choices=("auto", "at4", "at5"), help="AirTouch protocol profile. AT4 is implemented; AT5 is detected but not yet live-control capable.")
     parser.add_argument("--detect-seconds", type=float, default=3.0, help="Address-detection listen window for active mode.")
     parser.add_argument("--source-address", default="auto", help="Preferred touchpad source address: auto, 0x90, or 0x91. Default: auto.")
     parser.add_argument("--force-source-address", action="store_true", help="Use --source-address even if discovery sees that address occupied.")
@@ -249,6 +250,7 @@ def main(argv: list[str] | None = None) -> int:
                     auto_address=not args.passive,
                     force_source_address=args.force_source_address,
                     init_transactions=not args.passive,
+                    protocol=args.protocol,
                 ),
             )
             for event in runtime.start(now=started):

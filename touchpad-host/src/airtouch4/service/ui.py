@@ -12,61 +12,61 @@ INDEX_HTML = """<!doctype html>
   <style>
     :root {
       color-scheme: light;
-      --bg: var(--primary-background-color, #fafafa);
+      --bg: var(--primary-background-color, #f5f5f3);
       --panel: var(--card-background-color, #ffffff);
-      --panel-soft: var(--secondary-background-color, #f5f5f5);
-      --panel-deep: #eeeeee;
-      --ink: var(--primary-text-color, #212121);
-      --muted: var(--secondary-text-color, #727272);
-      --line: var(--divider-color, rgba(0, 0, 0, .12));
-      --ok: var(--success-color, #4caf50);
-      --bad: var(--error-color, #db4437);
-      --warn: var(--warning-color, #ff9800);
-      --accent: var(--primary-color, #03a9f4);
-      --accent-soft: #e1f5fe;
-      --cool: var(--primary-color, #03a9f4);
-      --warm: var(--accent-color, #ff9800);
-      --led-blue: var(--primary-color, #03a9f4);
+      --panel-soft: var(--secondary-background-color, #f7f7f5);
+      --panel-deep: #eeeeeb;
+      --ink: var(--primary-text-color, #20201e);
+      --muted: var(--secondary-text-color, #6f706b);
+      --line: var(--divider-color, #deded8);
+      --ok: var(--success-color, #14795a);
+      --bad: var(--error-color, #b42318);
+      --warn: var(--warning-color, #996700);
+      --accent: #4f5d75;
+      --accent-soft: #eceff5;
+      --cool: #2d6cdf;
+      --warm: #b45f06;
+      --led-blue: #1e88ff;
       --led-purple: #8b5cf6;
-      --led-red: var(--error-color, #db4437);
-      --led-amber: var(--warning-color, #ff9800);
-      --header: var(--app-header-background-color, #03a9f4);
+      --led-red: var(--error-color, #e02b20);
+      --led-amber: var(--warning-color, #d18b00);
+      --header: #20201e;
       --header-ink: var(--text-primary-color, #ffffff);
-      --active-bg: var(--primary-color, #03a9f4);
+      --active-bg: #4f5d75;
       --active-ink: var(--text-primary-color, #ffffff);
-      --shadow: 0 2px 6px rgba(0, 0, 0, .18);
-      --shadow-soft: 0 1px 3px rgba(0, 0, 0, .16);
+      --shadow: 0 18px 36px rgba(32, 32, 30, .12);
+      --shadow-soft: 0 8px 20px rgba(32, 32, 30, .08);
       --glass: rgba(255, 255, 255, .76);
-      --lcd: #f8f8f8;
+      --lcd: #fafaf8;
     }
     body[data-theme="dark"] {
       color-scheme: dark;
-      --bg: var(--primary-background-color, #111111);
-      --panel: var(--card-background-color, #1c1c1c);
-      --panel-soft: var(--secondary-background-color, #202020);
-      --panel-deep: #151515;
-      --ink: var(--primary-text-color, #e1e1e1);
-      --muted: var(--secondary-text-color, #9e9e9e);
-      --line: var(--divider-color, rgba(255, 255, 255, .12));
-      --ok: var(--success-color, #4caf50);
-      --bad: var(--error-color, #f44336);
-      --warn: var(--warning-color, #ffa726);
-      --accent: var(--primary-color, #03a9f4);
-      --accent-soft: #06384d;
-      --cool: var(--primary-color, #29b6f6);
-      --warm: var(--accent-color, #ffa726);
-      --led-blue: var(--primary-color, #29b6f6);
+      --bg: var(--primary-background-color, #111110);
+      --panel: var(--card-background-color, #1b1b19);
+      --panel-soft: var(--secondary-background-color, #242421);
+      --panel-deep: #151514;
+      --ink: var(--primary-text-color, #eeeeea);
+      --muted: var(--secondary-text-color, #aaa9a2);
+      --line: var(--divider-color, #3a3a35);
+      --ok: var(--success-color, #42b883);
+      --bad: var(--error-color, #ff6b5f);
+      --warn: var(--warning-color, #d8a63c);
+      --accent: #9aa8c7;
+      --accent-soft: #22283a;
+      --cool: #73a7ff;
+      --warm: #f0a650;
+      --led-blue: #49a8ff;
       --led-purple: #a78bfa;
-      --led-red: var(--error-color, #f44336);
-      --led-amber: var(--warning-color, #ffa726);
-      --header: var(--app-header-background-color, #03a9f4);
-      --header-ink: var(--text-primary-color, #ffffff);
-      --active-bg: var(--primary-color, #03a9f4);
-      --active-ink: var(--text-primary-color, #ffffff);
-      --shadow: 0 2px 6px rgba(0, 0, 0, .34);
-      --shadow-soft: 0 1px 3px rgba(0, 0, 0, .28);
-      --glass: rgba(28, 28, 28, .82);
-      --lcd: #181818;
+      --led-red: var(--error-color, #ff5a4f);
+      --led-amber: var(--warning-color, #f0b23e);
+      --header: #0f0f0e;
+      --header-ink: #f6f6f2;
+      --active-bg: #9aa8c7;
+      --active-ink: #111318;
+      --shadow: 0 10px 28px rgba(0, 0, 0, .22);
+      --shadow-soft: 0 4px 14px rgba(0, 0, 0, .18);
+      --glass: rgba(27, 27, 25, .78);
+      --lcd: #171716;
     }
     * { box-sizing: border-box; }
     body {
@@ -81,9 +81,9 @@ INDEX_HTML = """<!doctype html>
       gap: 14px;
       align-items: center;
       padding: 16px 18px 12px;
-      background: var(--header);
+      background: color-mix(in srgb, var(--header) 88%, black 8%);
       color: var(--header-ink);
-      border-bottom: 1px solid color-mix(in srgb, var(--header) 78%, black 18%);
+      border-bottom: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
       box-shadow: var(--shadow);
       position: sticky;
       top: 0;
@@ -187,10 +187,11 @@ INDEX_HTML = """<!doctype html>
     .nav {
       grid-column: 1 / -1;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, max-content) auto;
       gap: 8px;
       width: 100%;
       align-items: stretch;
+      justify-content: space-between;
     }
     .nav-group {
       display: flex;
@@ -203,14 +204,19 @@ INDEX_HTML = """<!doctype html>
     }
     .nav-pages {
       min-width: 0;
+      width: fit-content;
+      max-width: 100%;
+      justify-self: start;
     }
     .nav-settings {
       flex: 0 0 auto;
     }
     .nav .settings-tab {
-      width: 42px;
-      min-width: 42px;
-      font-size: 17px;
+      width: 50px;
+      min-width: 50px;
+      min-height: 44px;
+      font-size: 22px;
+      line-height: 1;
     }
     .error-strip {
       display: none;
@@ -678,6 +684,24 @@ INDEX_HTML = """<!doctype html>
       stroke-dasharray: 2.4 3.2;
       opacity: .62;
     }
+    .temp-line .prediction-line {
+      fill: none;
+      stroke: var(--warm);
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 4 3;
+      opacity: .82;
+    }
+    .temp-line .context-line {
+      fill: none;
+      stroke: color-mix(in srgb, var(--muted) 62%, var(--panel));
+      stroke-width: 1.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 2 4;
+      opacity: .66;
+    }
     .history-meta {
       display: flex;
       justify-content: space-between;
@@ -836,7 +860,7 @@ INDEX_HTML = """<!doctype html>
       border: 1px solid var(--line);
       border-radius: 5px;
       background: var(--panel-soft);
-      color: var(--text);
+      color: var(--ink);
       padding: 7px 8px;
       font: inherit;
     }
@@ -851,6 +875,192 @@ INDEX_HTML = """<!doctype html>
       gap: 8px;
       min-height: 34px;
     }
+    .check-row.compact {
+      min-height: 30px;
+      font-size: 12px;
+    }
+    .chip-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .model-row {
+      display: grid;
+      grid-template-columns: minmax(130px, 1.2fr) minmax(220px, 2fr) auto;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .model-row:last-child { border-bottom: 0; }
+    .model-row .model-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+    .model-row button {
+      min-height: 30px;
+      padding: 5px 8px;
+    }
+    .analytics-rows {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+    }
+    .analytics-row {
+      min-height: 92px;
+      display: grid;
+      grid-template-columns: minmax(150px, 1.1fr) minmax(220px, 1.4fr) minmax(280px, 2fr) auto;
+      gap: 12px;
+      align-items: center;
+    }
+    .analytics-row-main {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+    .analytics-row .tile-foot {
+      min-height: auto;
+      align-content: center;
+    }
+    .analytics-row-chart {
+      min-width: 0;
+    }
+    .analytics-row-metrics {
+      min-width: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.25;
+    }
+    .analytics-row-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .balance-rows {
+      display: grid;
+      gap: 8px;
+    }
+    .sensor-rows {
+      display: grid;
+      gap: 8px;
+    }
+    .sensor-row {
+      min-height: 82px;
+      display: grid;
+      grid-template-columns: minmax(150px, 1.2fr) minmax(120px, .8fr) minmax(160px, 1fr) minmax(190px, 1.2fr);
+      gap: 12px;
+      align-items: center;
+    }
+    .sensor-row-main {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+    .sensor-row-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-width: 0;
+    }
+    .sensor-row-temp {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+    .sensor-calibration {
+      display: grid;
+      grid-template-columns: minmax(140px, 1fr) 54px;
+      gap: 8px;
+      align-items: center;
+      min-width: 0;
+    }
+    .sensor-calibration input[type="range"] {
+      min-height: 32px;
+    }
+    @media (max-width: 880px) {
+      .sensor-row {
+        grid-template-columns: minmax(0, 1fr);
+        align-items: stretch;
+      }
+    }
+    .balance-row {
+      min-height: 76px;
+      display: grid;
+      grid-template-columns: minmax(140px, 1.1fr) minmax(120px, .8fr) minmax(240px, 1.7fr) auto;
+      gap: 12px;
+      align-items: center;
+    }
+    .balance-row-main {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+    .balance-row-value {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+    .balance-row-control {
+      display: grid;
+      grid-template-columns: minmax(160px, 1fr) 72px;
+      gap: 8px;
+      align-items: center;
+      min-width: 0;
+    }
+    .balance-row-control input[type="number"] {
+      min-height: 38px;
+    }
+    .balance-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    @media (max-width: 880px) {
+      .balance-row {
+        grid-template-columns: minmax(0, 1fr);
+        align-items: stretch;
+      }
+      .balance-actions {
+        justify-content: flex-start;
+      }
+    }
+    @media (max-width: 880px) {
+      .analytics-row {
+        grid-template-columns: minmax(0, 1fr);
+        align-items: stretch;
+      }
+      .analytics-row-actions {
+        justify-content: flex-start;
+      }
+    }
+    .day-chip input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .day-chip span {
+      display: inline-flex;
+      min-width: 42px;
+      min-height: 30px;
+      align-items: center;
+      justify-content: center;
+      padding: 5px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel-soft);
+      color: var(--ink);
+      font-weight: 720;
+    }
+    .day-chip input:checked + span {
+      border-color: var(--accent);
+      background: var(--active-bg);
+      color: var(--active-ink);
+    }
     .service-actions {
       display: flex;
       gap: 8px;
@@ -861,6 +1071,20 @@ INDEX_HTML = """<!doctype html>
       display: grid;
       gap: 10px;
       margin-top: 10px;
+    }
+    details.advanced-panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      background: color-mix(in srgb, var(--panel-soft) 70%, transparent);
+    }
+    details.advanced-panel summary {
+      cursor: pointer;
+      color: var(--muted);
+      font-weight: 740;
+    }
+    details.advanced-panel[open] summary {
+      margin-bottom: 10px;
     }
     .diagnostics {
       grid-column: 1 / -1;
@@ -892,6 +1116,13 @@ INDEX_HTML = """<!doctype html>
       header { grid-template-columns: 1fr; }
       main { padding: 10px; gap: 10px; }
       section { padding: 10px; }
+      .nav {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+      .nav-pages {
+        width: auto;
+        justify-self: stretch;
+      }
       .error-strip {
         max-height: 86px;
         overflow: auto;
@@ -939,6 +1170,7 @@ INDEX_HTML = """<!doctype html>
       <div class="nav-group nav-pages">
         <button type="button" class="active" data-view-button="control">Control</button>
         <button type="button" data-view-button="programs">Favourites & Programs</button>
+        <button type="button" data-view-button="adaptive">Adaptive</button>
       </div>
       <div class="nav-group nav-settings">
         <button type="button" class="settings-tab" data-view-button="settings" aria-label="Settings" title="Settings">&#9881;</button>
@@ -969,8 +1201,6 @@ INDEX_HTML = """<!doctype html>
         <button type="button" class="active" data-subview-button="programs" data-subview="favourites">Favourites</button>
         <button type="button" data-subview-button="programs" data-subview="program-list">Programs</button>
         <button type="button" data-subview-button="programs" data-subview="ac-timer">AC Timer</button>
-        <button type="button" data-subview-button="programs" data-subview="program-options">Options</button>
-        <button type="button" data-subview-button="programs" data-subview="program-summary">Summary</button>
       </div>
       <div id="programs-favourites" class="subview active">
         <section>
@@ -990,16 +1220,66 @@ INDEX_HTML = """<!doctype html>
           <div class="cards" id="ac-timers"></div>
         </section>
       </div>
-      <div id="programs-program-options" class="subview">
+    </div>
+
+    <div id="view-adaptive" class="view">
+      <div class="subnav" aria-label="Adaptive Pages">
+        <button type="button" class="active" data-subview-button="adaptive-page" data-subview="status">Status</button>
+        <button type="button" data-subview-button="adaptive-page" data-subview="config">Config</button>
+        <button type="button" data-subview-button="adaptive-page" data-subview="analytics">Analytics</button>
+      </div>
+      <div id="adaptive-page-status" class="subview active">
         <section>
-          <h2>Options</h2>
-          <div class="json" id="program-options">{}</div>
+          <h2>Adaptive</h2>
+          <div class="cards" id="adaptive-status"></div>
         </section>
       </div>
-      <div id="programs-program-summary" class="subview">
+      <div id="adaptive-page-config" class="subview">
         <section>
-          <h2>Summary</h2>
-          <div class="json" id="program-summary">{}</div>
+          <h2>Adaptive Config</h2>
+          <article class="card">
+            <div class="field-grid">
+              <div class="field">
+                <label>Control Mode</label>
+                <select id="adaptive-mode">
+                  <option value="off">Off</option>
+                  <option value="recommend">Recommend</option>
+                  <option value="auto_off">Auto Off</option>
+                  <option value="adaptive">Adaptive</option>
+                </select>
+              </div>
+              <div class="field"><label>Cool Differential</label><input id="adaptive-cool-diff" type="number" min="0" max="15" step="1"></div>
+              <div class="field"><label>Cool Comfort Limit</label><input id="adaptive-cool-comfort-temp" type="number" min="16" max="32" step="1"></div>
+              <div class="field"><label>Heat Differential</label><input id="adaptive-heat-diff" type="number" min="0" max="15" step="1"></div>
+              <div class="field"><label>Heat Comfort Limit</label><input id="adaptive-heat-comfort-temp" type="number" min="16" max="32" step="1"></div>
+              <div class="field"><label>Check Interval</label><input id="adaptive-check-interval" type="number" min="5" max="3600" step="5"></div>
+              <div class="field"><label>Command Cooldown</label><input id="adaptive-command-cooldown" type="number" min="1" max="7200" step="10"></div>
+              <div class="field">
+                <label>MPC Control</label>
+                <select id="adaptive-mpc-control">
+                  <option value="off">Off</option>
+                  <option value="control">Control</option>
+                </select>
+              </div>
+              <div class="field"><label>MPC Horizon</label><input id="adaptive-mpc-horizon-hours" type="number" min="1" max="24" step="1"></div>
+              <div class="field"><label>Minimum Run Time</label><input id="adaptive-compressor-min-run-time" type="number" min="0" step="60"></div>
+              <div class="field"><label>Minimum Off Time</label><input id="adaptive-compressor-min-off-time" type="number" min="0" step="60"></div>
+            </div>
+            <div class="field">
+              <label>Control Zones</label>
+              <div class="chip-grid" id="adaptive-control-zones"></div>
+            </div>
+            <div class="service-actions">
+              <button type="button" data-adaptive-save="true">Save Adaptive</button>
+              <button type="button" class="secondary" data-adaptive-model-action="reset_all">Reset Models</button>
+            </div>
+          </article>
+        </section>
+      </div>
+      <div id="adaptive-page-analytics" class="subview">
+        <section>
+          <h2>Analytics</h2>
+          <div class="analytics-rows" id="adaptive-analytics-cards"></div>
         </section>
       </div>
     </div>
@@ -1007,7 +1287,6 @@ INDEX_HTML = """<!doctype html>
     <div id="view-settings" class="view">
       <div class="subnav" aria-label="Settings Pages">
         <button type="button" class="active" data-subview-button="settings" data-subview="app">App</button>
-        <button type="button" data-subview-button="settings" data-subview="adaptive">Adaptive</button>
         <button type="button" data-subview-button="settings" data-subview="sensors">Sensors</button>
         <button type="button" data-subview-button="settings" data-subview="grouping">Grouping</button>
         <button type="button" data-subview-button="settings" data-subview="spill">Spill</button>
@@ -1032,32 +1311,6 @@ INDEX_HTML = """<!doctype html>
           </div>
         </section>
       </div>
-      <div id="settings-adaptive" class="subview">
-        <section>
-          <h2>Adaptive</h2>
-          <div class="cards" id="adaptive-status"></div>
-          <article class="card">
-            <div class="field-grid">
-              <div class="field">
-                <label>Control Mode</label>
-                <select id="adaptive-mode">
-                  <option value="off">Off</option>
-                  <option value="recommend">Recommend</option>
-                  <option value="auto_off">Auto Off</option>
-                  <option value="adaptive">Adaptive</option>
-                </select>
-              </div>
-              <div class="field"><label>Cool Differential</label><input id="adaptive-cool-diff" type="number" min="0" max="15" step="1"></div>
-              <div class="field"><label>Cool Comfort Limit</label><input id="adaptive-cool-comfort-temp" type="number" min="16" max="32" step="1"></div>
-              <div class="field"><label>Heat Differential</label><input id="adaptive-heat-diff" type="number" min="0" max="15" step="1"></div>
-              <div class="field"><label>Heat Comfort Limit</label><input id="adaptive-heat-comfort-temp" type="number" min="16" max="32" step="1"></div>
-              <div class="field"><label>Check Interval</label><input id="adaptive-check-interval" type="number" min="5" max="3600" step="5"></div>
-              <div class="field"><label>Command Cooldown</label><input id="adaptive-command-cooldown" type="number" min="1" max="7200" step="10"></div>
-            </div>
-            <div class="service-actions"><button type="button" data-adaptive-save="true">Save Adaptive</button></div>
-          </article>
-        </section>
-      </div>
       <div id="settings-sensors" class="subview">
         <section>
           <h2>Sensors</h2>
@@ -1065,10 +1318,7 @@ INDEX_HTML = """<!doctype html>
             <button type="button" data-service-action="pair-sensor" data-pairing="true">Start Pair</button>
             <button type="button" class="secondary" data-service-action="pair-sensor" data-pairing="false">Stop Pair</button>
           </div>
-          <table>
-            <thead><tr><th>Sensor</th><th>Name</th><th>Temp</th><th>Signal</th><th>Status</th></tr></thead>
-            <tbody id="sensors"></tbody>
-          </table>
+          <div class="sensor-rows" id="sensors"></div>
         </section>
       </div>
       <div id="settings-grouping" class="subview">
@@ -1086,10 +1336,7 @@ INDEX_HTML = """<!doctype html>
       <div id="settings-balance" class="subview">
         <section>
           <h2>Balance</h2>
-          <table>
-            <thead><tr><th>Zone</th><th>Set</th><th>Motor</th><th>State</th></tr></thead>
-            <tbody id="balance"></tbody>
-          </table>
+          <div class="balance-rows" id="balance"></div>
         </section>
       </div>
       <div id="settings-ac-setup" class="subview">
@@ -1132,10 +1379,23 @@ INDEX_HTML = """<!doctype html>
         <section class="diagnostics">
           <h2>Diagnostics</h2>
           <div class="cards" id="metrics"></div>
+          <h2>System Debug</h2>
+          <div class="cards" id="system-debug"></div>
           <table>
             <thead><tr><th>Type</th><th>Command</th><th>Message</th></tr></thead>
             <tbody id="events"></tbody>
           </table>
+          <h2>Program Debug</h2>
+          <div class="split">
+            <div>
+              <h3>Options</h3>
+              <div class="json" id="program-options">{}</div>
+            </div>
+            <div>
+              <h3>Summary</h3>
+              <div class="json" id="program-summary">{}</div>
+            </div>
+          </div>
         </section>
       </div>
     </div>
@@ -1154,6 +1414,7 @@ INDEX_HTML = """<!doctype html>
     let latestState = {};
     let latestHealth = {ok: false, status: "Connecting"};
     let editingUntil = 0;
+    let balanceCommitTimer = null;
 
     function apiPath(path) {
       return `${API_ROOT}/api/${path}`;
@@ -1265,8 +1526,55 @@ INDEX_HTML = """<!doctype html>
       </div>`;
     }
 
+    function adaptiveSparkline(points = []) {
+      const entries = (Array.isArray(points) ? points : [])
+        .map((point) => {
+          if (typeof point === "number") return {actual: point, predicted: null};
+          if (!point || typeof point !== "object") return {actual: null, predicted: null};
+          return {
+            actual: finiteNumber(point.temperature ?? point.room_temperature ?? point.actual ?? point.value),
+            predicted: finiteNumber(point.prediction ?? point.predicted_temperature ?? point.predicted),
+            context: finiteNumber(point.outdoor_temperature),
+          };
+        })
+        .filter((point) => point.actual !== null || point.predicted !== null || point.context !== null)
+        .slice(-36);
+      const values = entries.flatMap((point) => [point.actual, point.predicted, point.context]).filter((value) => value !== null);
+      if (values.length < 2) {
+        return `<svg class="temp-line" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true"><line class="axis" x1="0" y1="18" x2="120" y2="18"></line></svg>`;
+      }
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const spread = Math.max(1, max - min);
+      const pathFor = (key) => entries
+        .map((point, index) => {
+          const value = point[key];
+          if (value === null) return null;
+          const x = entries.length === 1 ? 0 : (index / (entries.length - 1)) * 120;
+          const y = 24 - ((value - min) / spread) * 20;
+          return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+        })
+        .filter(Boolean)
+        .join(" ");
+      const actualLine = pathFor("actual");
+      const predictionLine = pathFor("predicted");
+      const contextLine = pathFor("context");
+      return `<svg class="temp-line" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true">
+        <line class="axis" x1="0" y1="18" x2="120" y2="18"></line>
+        ${contextLine ? `<path class="context-line" d="${contextLine}"></path>` : ""}
+        ${predictionLine ? `<path class="prediction-line" d="${predictionLine}"></path>` : ""}
+        ${actualLine ? `<path d="${actualLine}"></path>` : ""}
+      </svg>`;
+    }
+
     function timeText(timer) {
       return timer && timer.enabled ? `${timer.hour}:${String(timer.minute).padStart(2, "0")}` : "-";
+    }
+
+    function timeValue(timer = {}) {
+      const hour = Number(timer.hour ?? 0);
+      const minute = Number(timer.minute ?? 0);
+      return `${String(Number.isFinite(hour) ? hour : 0).padStart(2, "0")}:${String(Number.isFinite(minute) ? minute : 0).padStart(2, "0")}`;
     }
 
     function timerFields(prefix, timer = {}) {
@@ -1275,12 +1583,15 @@ INDEX_HTML = """<!doctype html>
           <option value="true" ${timer.enabled ? "selected" : ""}>On</option>
           <option value="false" ${!timer.enabled ? "selected" : ""}>Off</option>
         </select></div>
-        <div class="field"><label>${prefix} Hour</label><input data-field="${prefix.toLowerCase()}-hour" type="number" min="0" max="23" value="${escapeHtml(timer.hour ?? 0)}"></div>
-        <div class="field"><label>${prefix} Min</label><input data-field="${prefix.toLowerCase()}-minute" type="number" min="0" max="59" value="${escapeHtml(timer.minute ?? 0)}"></div>`;
+        <div class="field"><label>${prefix} Time</label><input data-field="${prefix.toLowerCase()}-time" type="time" value="${escapeHtml(timeValue(timer))}"></div>`;
     }
 
     function boolSelect(field, label, value) {
       return `<div class="field"><label>${escapeHtml(label)}</label><select data-field="${escapeHtml(field)}"><option value="true" ${value ? "selected" : ""}>On</option><option value="false" ${!value ? "selected" : ""}>Off</option></select></div>`;
+    }
+
+    function selectField(field, label, value, options) {
+      return `<div class="field"><label>${escapeHtml(label)}</label><select data-field="${escapeHtml(field)}">${options.map(([optionValue, optionLabel]) => `<option value="${escapeHtml(optionValue)}" ${Number(optionValue) === Number(value) ? "selected" : ""}>${escapeHtml(optionLabel)}</option>`).join("")}</select></div>`;
     }
 
     function numberField(field, label, value, min, max) {
@@ -1344,6 +1655,8 @@ INDEX_HTML = """<!doctype html>
       }
       const weatherError = integrations && integrations.weather && integrations.weather.error;
       if (weatherError) alerts.push(`Outside weather: ${describeControllerError(weatherError)}`);
+      const forecastError = integrations && integrations.forecast && integrations.forecast.error;
+      if (forecastError) alerts.push(`Forecast weather: ${describeControllerError(forecastError)}`);
       const indoorError = integrations && integrations.indoor && integrations.indoor.error;
       if (indoorError) alerts.push(`Indoor climate: ${describeControllerError(indoorError)}`);
       const mqtt = integrations && integrations.mqtt;
@@ -1498,14 +1811,80 @@ INDEX_HTML = """<!doctype html>
       setValue("adaptive-heat-comfort-temp", current.heat_comfort_temp ?? 20);
       setValue("adaptive-check-interval", current.check_interval ?? 60);
       setValue("adaptive-command-cooldown", current.command_cooldown ?? 300);
+      setValue("adaptive-mpc-control", current.learning_mode === "control" ? "control" : "off");
+      setValue("adaptive-mpc-horizon-hours", current.mpc_horizon_hours ?? 6);
+      setValue("adaptive-compressor-min-run-time", current.compressor_min_run_time ?? 0);
+      setValue("adaptive-compressor-min-off-time", current.compressor_min_off_time ?? 0);
+      const controlZones = new Set((current.control_zones || []).map((zone) => Number(zone)));
+      const controlZoneContainer = $("adaptive-control-zones");
+      if (controlZoneContainer && !controlZoneContainer.contains(document.activeElement)) {
+        const entries = configuredGroupEntries(latestState || {});
+        controlZoneContainer.innerHTML = entries.map(([id, group]) => {
+          const zone = Number(id);
+          const learningZone = ((adaptive.learning || {}).zones || {})[String(zone)] || {};
+          const statusItems = [
+            learningZone.learn === true ? "Learning" : "No Learning",
+            controlZones.has(zone) ? "Control Enabled" : "Monitor",
+          ].filter(Boolean).join(" / ");
+          return `<label class="check-row compact">
+            <input type="checkbox" data-adaptive-control-zone="${escapeHtml(zone)}" ${controlZones.has(zone) ? "checked" : ""}>
+            <span>${escapeHtml(group.name || `Zone ${zone + 1}`)}</span>
+            ${statusItems ? `<span class="pill">${escapeHtml(statusItems)}</span>` : ""}
+          </label>`;
+        }).join("") || '<span class="muted">No Zones</span>';
+      }
       const outside = adaptive.outside_temperature === undefined || adaptive.outside_temperature === null
         ? "-"
         : formatTemp(adaptive.outside_temperature, 1);
       const recommendations = Array.isArray(adaptive.recommendations) ? adaptive.recommendations : [];
       const actions = Array.isArray(adaptive.actions) ? adaptive.actions : [];
       const errors = Array.isArray(adaptive.errors) ? adaptive.errors : [];
+      const learning = adaptive.learning || {};
+      const learningZones = learning.zones || {};
+      const confidenceValues = Object.values(learningZones)
+        .map((zone) => Number(zone && zone.confidence))
+        .filter((value) => Number.isFinite(value));
+      const confidence = confidenceValues.length
+        ? `${Math.round((confidenceValues.reduce((total, value) => total + value, 0) / confidenceValues.length) * 100)}%`
+        : "-";
+      const zoneModels = Object.values(learningZones);
+      const learningCount = zoneModels.filter((zone) => zone && zone.learn === true).length;
+      const readyCount = zoneModels.filter((zone) => zone && zone.mpc_ready === true).length;
+      const passiveSamples = zoneModels.reduce((total, zone) => total + Number((zone || {}).passive_samples || 0), 0);
+      const activeSamples = zoneModels.reduce((total, zone) => total + Number((zone || {}).active_samples || 0), 0);
+      const stdValues = zoneModels
+        .map((zone) => Number(zone && zone.prediction_std))
+        .filter((value) => Number.isFinite(value));
+      const predictionStd = stdValues.length
+        ? (stdValues.reduce((total, value) => total + value, 0) / stdValues.length).toFixed(2)
+        : "-";
+      const evaluations = Array.isArray(adaptive.evaluations) ? adaptive.evaluations : [];
+      const mpcEvaluation = evaluations.slice().reverse().find((item) => item && item.mpc);
+      const mpc = mpcEvaluation ? mpcEvaluation.mpc : null;
+      const plans = learning.plans || {};
+      const latestPlanEntry = Object.entries(plans).slice(-1)[0];
+      const latestPlan = latestPlanEntry ? latestPlanEntry[1] : null;
+      const mpcText = mpc
+        ? `AC ${Number(mpcEvaluation.ac) + 1}: ${mpc.action || mpc.source || "mpc"} ${mpc.target ?? "-"} (${Math.round(Number(mpc.confidence || 0) * 100)}%)`
+        : latestPlanEntry
+          ? `AC ${Number(latestPlanEntry[0]) + 1}: ${latestPlan.action || latestPlan.source || "mpc"} ${latestPlan.target ?? "-"} (${Math.round(Number(latestPlan.confidence || 0) * 100)}%)`
+          : "None";
+      const compressor = learning.compressor || {};
+      const compressorItems = Object.entries(compressor).map(([ac, state]) => {
+        const seconds = state && state.seconds_since_change !== null && state.seconds_since_change !== undefined
+          ? `${Math.round(Number(state.seconds_since_change))}s`
+          : "-";
+        return `AC ${Number(ac) + 1} ${state && state.power_on ? "On" : "Off"} ${seconds}`;
+      });
       $("adaptive-status").innerHTML = [
-        metric("Mode", titleText(adaptive.mode || current.mode || "off")),
+        metric("Control Mode", titleText(adaptive.mode || current.mode || "off")),
+        metric("MPC Control", current.learning_mode === "control" ? "Enabled" : "Off"),
+        metric("Control Zones", `${controlZones.size} Enabled`),
+        metric("Learning Models", `${Object.keys(learningZones).length} Models / ${learningCount} Learning / ${readyCount} Ready`),
+        metric("Samples", `${passiveSamples} Passive / ${activeSamples} Active`),
+        metric("Confidence", `${confidence} / Std ${predictionStd}`),
+        metric("Latest Plan", mpcText),
+        metric("Compressor Guard", compressorItems.join(", ") || "-"),
         metric("Outside", outside),
         metric("Active AC", (adaptive.active_ac || []).join(", ") || "-"),
         metric("Active Zones", (adaptive.active_groups || []).map((item) => Number(item) + 1).join(", ") || "-"),
@@ -1513,6 +1892,48 @@ INDEX_HTML = """<!doctype html>
         infoCard("Actions", actions.join(" / ") || "None"),
         errors.length ? infoCard("Errors", errors.join(" / ")) : "",
       ].filter(Boolean).join("");
+      const analyticsContainer = $("adaptive-analytics-cards");
+      if (analyticsContainer) {
+        const analyticsHistory = learning.analytics || {};
+        const entries = configuredGroupEntries(latestState || {});
+        analyticsContainer.innerHTML = entries.map(([id, group]) => {
+          const zone = Number(id);
+          const learningZone = learningZones[String(zone)] || {};
+          const progress = Number(learningZone.learning_progress);
+          const confidenceValue = Number(learningZone.confidence);
+          const std = Number(learningZone.prediction_std);
+          const plan = plans[String(zone)] || null;
+          const history = analyticsHistory[String(zone)] || analyticsHistory[zone] || [];
+          const badges = [
+            learningZone.learn === true ? '<span class="pill cool">Learning</span>' : '<span class="pill">Monitor</span>',
+            controlZones.has(zone) ? '<span class="pill on">Control Enabled</span>' : '',
+            learningZone.mpc_ready === true ? '<span class="pill cool">MPC Ready</span>' : '<span class="pill warn">Warming</span>',
+            learningZone.accelerated_learning === true ? '<span class="pill warn">Fast</span>' : '',
+          ].filter(Boolean).join("");
+          const metrics = [
+            Number.isFinite(confidenceValue) ? `Confidence ${Math.round(confidenceValue * 100)}%` : "Confidence -",
+            Number.isFinite(progress) ? `Learning ${Math.round(progress * 100)}%` : "Learning -",
+            `Passive ${Number(learningZone.passive_samples || 0)}`,
+            `Active ${Number(learningZone.active_samples || 0)}`,
+            Number.isFinite(std) ? `Std ${std.toFixed(2)}` : "Std -",
+            Number.isFinite(Number(learningZone.active_response_per_hour)) ? `Response ${Number(learningZone.active_response_per_hour).toFixed(2)}/h` : "",
+            learningZone.readiness_reason && learningZone.readiness_reason !== "ready" ? titleText(learningZone.readiness_reason) : "",
+            plan ? `Plan ${titleText(plan.action || plan.source || "mpc")} ${plan.target ?? "-"}` : "",
+          ].filter(Boolean).join(" / ");
+          return `<article class="card analytics-row">
+            <div class="analytics-row-main">
+              <div class="card-title">${escapeHtml(group.name || `Zone ${zone + 1}`)}</div>
+              <div class="tile-foot">${badges}</div>
+            </div>
+            <div class="analytics-row-chart">${adaptiveSparkline(history)}</div>
+            <div class="analytics-row-metrics">${escapeHtml(metrics)}</div>
+            <div class="analytics-row-actions">
+              <button type="button" class="secondary" data-adaptive-model-action="accelerate_zone" data-zone="${escapeHtml(zone)}" data-enabled="${learningZone.accelerated_learning === true ? "false" : "true"}">${learningZone.accelerated_learning === true ? "Normal" : "Fast"}</button>
+              <button type="button" class="secondary" data-adaptive-model-action="reset_zone" data-zone="${escapeHtml(zone)}">Reset</button>
+            </div>
+          </article>`;
+        }).join("") || '<div class="muted">No Analytics</div>';
+      }
     }
 
     function supplyAirText(items = []) {
@@ -1589,9 +2010,73 @@ INDEX_HTML = """<!doctype html>
     function sensorName(value) {
       const sensor = Number(value);
       if (!Number.isFinite(sensor) || sensor === 255) return "None";
+      if (sensor === 128) return "AC Sensor";
       if (sensor === 144) return "Touchpad 1";
       if (sensor === 145) return "Touchpad 2";
-      return `Sensor ${sensor}`;
+      if (sensor === 146) return "Average";
+      if (sensor === 147) return "Economy";
+      return `RF Sensor ${sensor}`;
+    }
+
+    function sensorKindLabel(kind) {
+      if (kind === "rf") return "RF";
+      if (kind === "touchpad") return "Touchpad";
+      if (kind === "supply_air") return "Supply Air";
+      return titleText(kind || "Sensor");
+    }
+
+    function sensorDisplayName(row) {
+      if (!row) return "None";
+      const id = Number(row.id);
+      const fallback = Number.isFinite(id) ? sensorName(id) : titleText(row.name || row.id || "Sensor");
+      const rawName = String(row.name || "");
+      if (!rawName || rawName === `rf_sensor_${row.id}` || rawName === `sensor_addr_${row.id}`) return fallback;
+      return titleText(rawName);
+    }
+
+    function sensorStatusPill(row) {
+      const status = String(row.status || (row.present === false ? "missing" : row.listed ? "listed" : "unknown")).toLowerCase();
+      const cls = status === "ok" || status === "listed" ? "pill on" : status === "missing" || status === "lost" || status === "error" ? "pill warn" : "pill";
+      return `<span class="${cls}">${escapeHtml(titleText(status))}</span>`;
+    }
+
+    function sensorRowsFromState(state) {
+      const view = Array.isArray(state.sensor_view) ? state.sensor_view : [];
+      if (view.length) return view;
+      return Object.entries(state.sensors || {}).map(([id, sensor]) => ({
+        id: Number(id),
+        address: Number(id) >= 0x80 ? `0x${Number(id).toString(16).toUpperCase()}` : id,
+        name: sensor.sensor_name,
+        kind: sensor.kind,
+        temperature: sensor.temperature,
+        status: sensor.status || (sensor.present === false ? "missing" : sensor.listed ? "listed" : "unknown"),
+        present: sensor.present,
+        listed: sensor.listed,
+        signal: sensor.signal,
+        battery: sensor.battery,
+        low_battery: sensor.low_battery,
+        mac: sensor.mac,
+        mapped_groups: [],
+      }));
+    }
+
+    function sensorOptions(state, currentValue) {
+      const seen = new Set();
+      const options = [[255, "None"], [144, "Touchpad 1"], [145, "Touchpad 2"], [146, "Average"]];
+      sensorRowsFromState(state).forEach((row) => {
+        const sensor = Number(row.id);
+        if (Number.isFinite(sensor) && row.kind !== "supply_air") options.push([sensor, sensorDisplayName(row)]);
+      });
+      const current = Number(currentValue);
+      if (Number.isFinite(current) && !options.some(([value]) => Number(value) === current)) {
+        options.push([current, sensorName(current)]);
+      }
+      return options.filter(([value]) => {
+        const key = Number(value);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     }
 
     function visibleAcs(state) {
@@ -1791,7 +2276,7 @@ INDEX_HTML = """<!doctype html>
         current: controlTemperature ?? fallbackTemperature,
         showSetpoint: hasActiveSensorZone,
         canChangeSetpoint: hasActiveSensorZone && !allActiveSensorZonesUseTempControl,
-        source: controlTemperature !== null ? "AC Control Temp" : mappedSensorTemperature !== null ? "Mapped Zone Avg" : anyTemperature !== null ? "Zone Avg" : "No Temp",
+        source: controlTemperature !== null ? "AC Control Temp" : mappedSensorTemperature !== null ? "Zone Control Temp Avg" : anyTemperature !== null ? "Zone Temp Avg" : "No Temp",
       };
     }
 
@@ -1972,13 +2457,13 @@ INDEX_HTML = """<!doctype html>
           >${pending ? "..." : "&#9211;"}</button>
           <div class="group-body">
             <div class="reading">
-              <div class="label">Room</div>
+              <div class="label">Zone Temp</div>
               <div class="big">${escapeHtml(roomTemp)}</div>
             </div>
             <div class="reading">
               <div class="label">${escapeHtml(sensorControl ? "Set" : "Vent")}</div>
               <div class="small-value">${escapeHtml(valueLabel)}</div>
-              <div class="muted">${escapeHtml(status.has_sensor ? "Mapped" : "No Sensor")}</div>
+              <div class="muted">${escapeHtml(status.has_sensor ? "Mapped Sensor" : "No Sensor")}</div>
             </div>
           </div>
           <div class="damper">
@@ -2010,13 +2495,14 @@ INDEX_HTML = """<!doctype html>
         }).join("");
         return `
           <article class="card" data-favourite-card="${escapeHtml(id)}">
-            <div class="card-title">${escapeHtml(favourite.name || `Favourite ${Number(id) + 1}`)}</div>
+            <div class="card-title">Favourite ${escapeHtml(Number(id) + 1)}: ${escapeHtml(favourite.name || "Empty")}</div>
+            <div><span class="${groupNames.length ? "pill on" : "pill"}">${escapeHtml(groupNames.length ? `${groupNames.length} Zones` : "No Zones")}</span></div>
             <div class="muted">${escapeHtml(groupNames.length ? groupNames.join(", ") : "No Zones Selected")}</div>
             <div class="service-card-body">
               <div class="field-grid">
                 ${textField("favourite-name", "Name", favourite.name || "", 8)}
               </div>
-              <div class="field-grid">${groupChecks}</div>
+              <div class="chip-grid">${groupChecks}</div>
               <div class="service-actions">
                 <button type="button" data-action="active-favourite" data-favourite="${escapeHtml(id)}" ${pending ? "disabled" : ""}>${escapeHtml(pending ? "Sending" : "Apply")}</button>
                 <button type="button" class="secondary" data-action="favourite-save" data-favourite="${escapeHtml(id)}">Save Favourite</button>
@@ -2057,6 +2543,43 @@ INDEX_HTML = """<!doctype html>
       });
     }
 
+    function applyAcSettingsCard(record, card) {
+      record.hide_spill_group = fieldBool(card, "hide-spill");
+      record.ctrl_thermostat = fieldNumber(card, "ctrl-thermostat");
+      record.cool_adjust = fieldNumber(card, "cool-adjust");
+      record.heat_adjust = fieldNumber(card, "heat-adjust");
+      record.min_setpoint = fieldNumber(card, "min-setpoint");
+      record.max_setpoint = fieldNumber(card, "max-setpoint");
+      record.auto_off = fieldBool(card, "auto-off");
+      record.on_time_limit = fieldNumber(card, "on-time-limit");
+      record.modes = {
+        auto: fieldBool(card, "mode-auto"),
+        cool: fieldBool(card, "mode-cool"),
+        heat: fieldBool(card, "mode-heat"),
+        dry: fieldBool(card, "mode-dry"),
+        fan: fieldBool(card, "mode-fan")
+      };
+      record.fan_values = {
+        auto: fieldNumber(card, "fan-auto"),
+        quiet: fieldNumber(card, "fan-quiet"),
+        low: fieldNumber(card, "fan-low"),
+        medium: fieldNumber(card, "fan-medium"),
+        high: fieldNumber(card, "fan-high"),
+        powerful: fieldNumber(card, "fan-powerful"),
+        turbo: fieldNumber(card, "fan-turbo")
+      };
+      record.selector_visibility = {
+        auto: fieldBool(card, "selector-auto"),
+        touchpad_1: fieldBool(card, "selector-touchpad_1"),
+        touchpad_2: fieldBool(card, "selector-touchpad_2"),
+        average: fieldBool(card, "selector-average"),
+        economy: fieldBool(card, "selector-economy"),
+        groups_1_8_bitmap: fieldNumber(card, "selector-groups-1"),
+        groups_9_16_bitmap: fieldNumber(card, "selector-groups-2")
+      };
+      return record;
+    }
+
     function programRecordsFromState() {
       return Object.entries(latestState.programs || {})
         .sort(([a], [b]) => Number(a) - Number(b))
@@ -2086,10 +2609,12 @@ INDEX_HTML = """<!doctype html>
     }
 
     function timerFromCard(card, prefix) {
+      const value = card.querySelector(`[data-field="${prefix}-time"]`).value || "00:00";
+      const [hour, minute] = value.split(":").map((item) => Number(item));
       return {
         enabled: card.querySelector(`[data-field="${prefix}-enabled"]`).value === "true",
-        hour: Number(card.querySelector(`[data-field="${prefix}-hour"]`).value),
-        minute: Number(card.querySelector(`[data-field="${prefix}-minute"]`).value)
+        hour: Number.isFinite(hour) ? hour : 0,
+        minute: Number.isFinite(minute) ? minute : 0
       };
     }
 
@@ -2103,8 +2628,8 @@ INDEX_HTML = """<!doctype html>
 
     function balanceValuesFromPage() {
       const values = Array(16).fill(0);
-      document.querySelectorAll("[data-balance-value]").forEach((input) => {
-        const zone = Number(input.dataset.balanceValue);
+      document.querySelectorAll("[data-balance-number]").forEach((input) => {
+        const zone = Number(input.dataset.balanceNumber);
         if (zone >= 0 && zone < values.length) values[zone] = Number(input.value);
       });
       return values;
@@ -2122,6 +2647,58 @@ INDEX_HTML = """<!doctype html>
       return Array.from(card.querySelectorAll("[data-favourite-group]"))
         .filter((input) => input.checked)
         .map((input) => Number(input.dataset.favouriteGroup));
+    }
+
+    function checkedValues(card, selector) {
+      return Array.from(card.querySelectorAll(selector))
+        .filter((input) => input.checked)
+        .map((input) => Number(input.value));
+    }
+
+    function bitmapFromValues(values) {
+      return values.reduce((mask, value) => mask | (1 << Number(value)), 0);
+    }
+
+    function groupBitmapFromValues(values) {
+      const low = [];
+      const high = [];
+      values.forEach((group) => {
+        if (group < 8) {
+          low.push(group);
+        } else {
+          high.push(group - 8);
+        }
+      });
+      return {
+        groups_1_8_bitmap: bitmapFromValues(low),
+        groups_9_16_bitmap: bitmapFromValues(high)
+      };
+    }
+
+    function programZoneChecks(groups, program) {
+      return Object.entries(groups || {}).sort(([a], [b]) => Number(a) - Number(b)).map(([groupId, group]) => {
+        const index = Number(groupId);
+        const selected = index < 8
+          ? !!((program.groups_1_8_bitmap || 0) & (1 << index))
+          : !!((program.groups_9_16_bitmap || 0) & (1 << (index - 8)));
+        const name = group.name || `Zone ${index + 1}`;
+        return `<label class="check-row compact"><input type="checkbox" data-program-zone value="${index}" ${selected ? "checked" : ""}><span>${escapeHtml(name)}</span></label>`;
+      }).join("");
+    }
+
+    function programAcChecks(program) {
+      return visibleAcs(latestState).map(([id, ac]) => {
+        const index = Number(id);
+        const selected = !!((program.active_ac_bitmap || 0) & (1 << index));
+        const name = (ac.base || {}).name || `AC ${index + 1}`;
+        return `<label class="check-row compact"><input type="checkbox" data-program-ac value="${index}" ${selected ? "checked" : ""}><span>${escapeHtml(name)}</span></label>`;
+      }).join("");
+    }
+
+    function dayChips(program) {
+      const days = [["Mon", 1], ["Tue", 2], ["Wed", 3], ["Thu", 4], ["Fri", 5], ["Sat", 6], ["Sun", 0]];
+      const bitmap = Number(program.days_bitmap || 0);
+      return days.map(([label, bit]) => `<label class="day-chip"><input type="checkbox" data-program-day value="${bit}" ${bitmap & (1 << bit) ? "checked" : ""}><span>${label}</span></label>`).join("");
     }
 
     function clearedProgramRecord(program) {
@@ -2145,23 +2722,35 @@ INDEX_HTML = """<!doctype html>
         const groupNames = groupNamesFromBitmap(groups, program.groups_1_8_bitmap || 0, program.groups_9_16_bitmap || 0);
         const onTimer = program.on_timer || {};
         const offTimer = program.off_timer || {};
+        const acNames = visibleAcs(latestState)
+          .filter(([id]) => !!((program.active_ac_bitmap || 0) & (1 << Number(id))))
+          .map(([id, ac]) => (ac.base || {}).name || `AC ${Number(id) + 1}`);
         return `
           <article class="card" data-program="${escapeHtml(program.program ?? _id)}">
-            <div class="card-title">${escapeHtml(program.name || `Program ${(program.program ?? 0) + 1}`)}</div>
-            <div class="muted">${escapeHtml(groupNames.length ? groupNames.join(", ") : "No Zones Selected")}</div>
+            <div class="card-title">Program ${escapeHtml(Number(program.program ?? _id) + 1)}: ${escapeHtml(program.name || "Empty")}</div>
             <div><span class="${program.enabled ? "pill on" : "pill"}">${escapeHtml(program.enabled ? "Enabled" : "Off")}</span></div>
+            <div class="muted">${escapeHtml(groupNames.length ? groupNames.join(", ") : "No Zones Selected")}</div>
+            <div class="muted">${escapeHtml(acNames.length ? acNames.join(", ") : "No AC Selected")}</div>
             <div class="muted">On ${escapeHtml(timeText(onTimer))} / Off ${escapeHtml(timeText(offTimer))}</div>
             <div class="service-card-body">
               <div class="field-grid">
                 <div class="field"><label>Name</label><input data-field="program-name" maxlength="8" value="${escapeHtml(program.name || "")}"></div>
                 <div class="field"><label>Enabled</label><select data-field="program-enabled"><option value="true" ${program.enabled ? "selected" : ""}>On</option><option value="false" ${!program.enabled ? "selected" : ""}>Off</option></select></div>
-                <div class="field"><label>Days</label><input data-field="program-days" type="number" min="0" max="127" value="${escapeHtml(program.days_bitmap ?? 0)}"></div>
-                <div class="field"><label>Zones 1-8</label><input data-field="program-groups-1" type="number" min="0" max="255" value="${escapeHtml(program.groups_1_8_bitmap ?? 0)}"></div>
-                <div class="field"><label>Zones 9-16</label><input data-field="program-groups-2" type="number" min="0" max="255" value="${escapeHtml(program.groups_9_16_bitmap ?? 0)}"></div>
-                <div class="field"><label>AC Mask</label><input data-field="program-acs" type="number" min="0" max="15" value="${escapeHtml(program.active_ac_bitmap ?? 0)}"></div>
                 ${timerFields("On", onTimer)}
-                <div class="field"><label>Setpoint</label><input data-field="program-on-setpoint" type="number" min="0" max="63" value="${escapeHtml(program.on_setpoint ?? 26)}"></div>
+                <div class="field"><label>Setpoint</label><input data-field="program-on-setpoint" type="number" min="16" max="30" value="${escapeHtml(program.on_setpoint ?? 26)}"></div>
                 ${timerFields("Off", offTimer)}
+              </div>
+              <div class="field">
+                <label>Days</label>
+                <div class="chip-grid">${dayChips(program)}</div>
+              </div>
+              <div class="field">
+                <label>Zones</label>
+                <div class="chip-grid">${programZoneChecks(groups, program)}</div>
+              </div>
+              <div class="field">
+                <label>AC</label>
+                <div class="chip-grid">${programAcChecks(program)}</div>
               </div>
               <div class="service-actions">
                 <button type="button" data-program-action="program-save" data-program="${escapeHtml(program.program ?? _id)}">Save Program</button>
@@ -2181,12 +2770,15 @@ INDEX_HTML = """<!doctype html>
         const timer = ac.timer || {};
         const onTimer = timer.on_timer || timer.timer || {};
         const offTimer = timer.off_timer || {};
+        const hasTimer = !!(onTimer.enabled || offTimer.enabled);
         return `
           <article class="card" data-ac-timer="${escapeHtml(id)}">
             <div class="card-title">${escapeHtml(base.name || `AC ${Number(id) + 1}`)}</div>
+            <div><span class="${hasTimer ? "pill on" : "pill"}">${escapeHtml(hasTimer ? "Timer Set" : "No Timer")}</span></div>
             <div class="muted">${escapeHtml(status.power_on ? "On" : "Off")} / ${escapeHtml(modeName(status.mode))} / ${escapeHtml(fanName(status.fan))} / ${escapeHtml(temp(status.setpoint))}</div>
             <div class="muted">On ${escapeHtml(timeText(onTimer))} / Off ${escapeHtml(timeText(offTimer))}</div>
             <div class="service-card-body">
+              <h3>Timer</h3>
               <div class="field-grid">${timerFields("On", onTimer)}${timerFields("Off", offTimer)}</div>
               <div class="service-actions"><button type="button" data-program-action="ac-timer-save" data-ac="${escapeHtml(id)}">Save Timer</button></div>
             </div>
@@ -2209,8 +2801,11 @@ INDEX_HTML = """<!doctype html>
       const groupEntries = configuredGroupEntries(state);
       const acs = visibleAcs(state);
       const system = state.system || {};
-      const balanceZones = (((state.system || {}).balance || {}).zones || [])
-        .filter((zone) => groups[zone.zone]);
+      const sensorRows = sensorRowsFromState(state);
+      const sensorById = new Map(sensorRows.filter((row) => Number.isFinite(Number(row.id))).map((row) => [Number(row.id), row]));
+      const balanceByZone = new Map(((((state.system || {}).balance || {}).zones || [])
+        .filter((zone) => groups[zone.zone]))
+        .map((zone) => [Number(zone.zone), zone]));
       $("grouping").innerHTML = groupEntries
         .map(([id, group]) => {
           const grouping = group.grouping || {};
@@ -2220,17 +2815,26 @@ INDEX_HTML = """<!doctype html>
           const zoneCount = grouping.zone_count ?? 1;
           const minPercent = grouping.min_percent ?? status.min_percentage ?? 0;
           const thermostat = grouping.thermostat ?? status.sensor ?? 255;
+          const thermostatRow = sensorById.get(Number(thermostat));
+          const sensorLabel = thermostatRow ? sensorDisplayName(thermostatRow) : sensorName(thermostat);
+          const sensorHealth = thermostatRow
+            ? `${sensorKindLabel(thermostatRow.kind)} / ${titleText(thermostatRow.status || "unknown")} / ${temp(thermostatRow.temperature)}`
+            : (Number(thermostat) === 255 ? "No Sensor" : "Configured, Not Reporting");
+          const sensorMapped = thermostatRow && thermostatRow.mapped_groups && thermostatRow.mapped_groups.length
+            ? ` / Mapped ${thermostatRow.mapped_groups.join(", ")}`
+            : "";
           return `
             <article class="card" data-service-group="${escapeHtml(id)}">
               <div class="card-title">${escapeHtml(groupName)}</div>
-              <div class="muted">Mapped Dampers ${escapeHtml(zoneStart)}-${escapeHtml(Number(zoneStart) + Number(zoneCount) - 1)} / Sensor ${escapeHtml(sensorName(thermostat))}</div>
+              <div class="muted">Mapped Dampers ${escapeHtml(zoneStart)}-${escapeHtml(Number(zoneStart) + Number(zoneCount) - 1)} / Sensor ${escapeHtml(sensorLabel)}</div>
+              <div class="muted">${escapeHtml(sensorHealth + sensorMapped)}</div>
               <div class="service-card-body">
                 <div class="field-grid">
                   <div class="field"><label>Name</label><input data-field="group-name" maxlength="8" value="${escapeHtml(groupName)}"></div>
                   <div class="field"><label>Start</label><input data-field="zone-start" type="number" min="0" max="63" value="${escapeHtml(zoneStart)}"></div>
                   <div class="field"><label>Count</label><input data-field="zone-count" type="number" min="1" max="4" value="${escapeHtml(zoneCount)}"></div>
                   <div class="field"><label>Min %</label><input data-field="min-percent" type="number" min="0" max="100" value="${escapeHtml(minPercent)}"></div>
-                  <div class="field"><label>Sensor</label><input data-field="thermostat" type="number" min="0" max="255" value="${escapeHtml(thermostat)}"></div>
+                  ${selectField("thermostat", "Sensor", thermostat, sensorOptions(state, thermostat))}
                 </div>
                 <div class="service-actions">
                   <button type="button" data-service-action="group-name" data-group="${escapeHtml(id)}">Save Name</button>
@@ -2239,51 +2843,80 @@ INDEX_HTML = """<!doctype html>
               </div>
             </article>`;
         }).join("") || '<div class="muted">No Grouping Data</div>';
-      $("spill").innerHTML = Object.entries(groups)
+      const spillZoneChecks = Object.entries(groups)
         .sort(([a], [b]) => Number(a) - Number(b))
         .map(([id, group]) => {
           const status = group.status || {};
           const configured = group.spill_configured || status.spill_on;
-          return `
-            <article class="card">
-              <div class="card-title">${escapeHtml(group.name || `Zone ${Number(id) + 1}`)}</div>
-              <div class="muted">${escapeHtml(configured ? "Configured As Spill/Storage Path" : "Normal Controlled Zone")}</div>
-              <label class="check-row">
-                <input type="checkbox" data-spill-group="${escapeHtml(id)}" ${configured ? "checked" : ""}>
-                <span class="${configured ? "pill warn" : "pill"}">${configured ? "Spill" : "Normal"}</span>
-              </label>
-            </article>`;
-        }).join("") || '<div class="muted">No Spill Data</div>';
-      $("spill").innerHTML += `
+          const damper = pct(status.percentage);
+          const spillState = status.spill_on ? "Open" : "Reported";
+          return `<label class="check-row compact">
+            <input type="checkbox" data-spill-group="${escapeHtml(id)}" ${configured ? "checked" : ""}>
+            <span>${escapeHtml(group.name || `Zone ${Number(id) + 1}`)}</span>
+            <span class="${status.spill_on ? "pill warn" : "pill"}" data-spill-open="${escapeHtml(id)}">${escapeHtml(damper === null ? "-" : `${spillState} ${damper}%`)}</span>
+          </label>`;
+        }).join("");
+      $("spill").innerHTML = `
         <article class="card">
-          <div class="card-title">AC Spill Mode</div>
-          <div class="field-grid">
-            ${[0, 1, 2, 3].map((ac) => {
-              const configured = (((system.spill || {}).ac_spill_types || [])[ac] || {}).value ?? 0;
-              return `<div class="field"><label>AC ${ac + 1}</label><select data-spill-ac="${ac}">
-                ${[[0, "None"], [1, "Spill"], [2, "Storage"], [3, "Reserve"]].map(([value, label]) => `<option value="${value}" ${configured === value ? "selected" : ""}>${label}</option>`).join("")}
-              </select></div>`;
+          <div class="card-title">Spill Zones</div>
+          <div class="chip-grid">${spillZoneChecks || '<span class="muted">No Spill Data</span>'}</div>
+        </article>
+        <article class="card">
+          <div class="card-title">Display</div>
+          <div class="chip-grid">
+            ${acs.map(([id, ac]) => {
+              const acIndex = Number(id);
+              const hideSpill = !!((ac.settings || {}).hide_spill_group);
+              const name = (ac.base || {}).name || `AC ${acIndex + 1}`;
+              return `<label class="check-row compact">
+                <input type="checkbox" data-spill-hide-ac="${acIndex}" ${hideSpill ? "checked" : ""}>
+                <span>${escapeHtml(name)} Hide Spill</span>
+              </label>`;
             }).join("")}
           </div>
+          <details class="advanced-panel">
+            <summary>AC Spill Mode</summary>
+            <div class="field-grid">
+              ${acs.map(([id, ac]) => {
+                const acIndex = Number(id);
+                const configured = (((system.spill || {}).ac_spill_types || [])[acIndex] || {}).value ?? 0;
+                const name = (ac.base || {}).name || `AC ${acIndex + 1}`;
+                return `<div class="field"><label>${escapeHtml(name)}</label><select data-spill-ac="${acIndex}">
+                  ${[[0, "None"], [1, "Spill"], [2, "Bypass"]].map(([value, label]) => `<option value="${value}" ${configured === value ? "selected" : ""}>${label}</option>`).join("")}
+                </select></div>`;
+              }).join("")}
+            </div>
+          </details>
           <div class="service-actions"><button type="button" data-service-action="spill">Save Spill</button></div>
         </article>`;
-      $("balance").innerHTML = balanceZones.length
-        ? balanceZones.map((zone) => {
-          const group = groups[zone.zone] || {};
-          return `<tr data-balance-zone="${escapeHtml(zone.zone)}">
-            <td>${escapeHtml(group.name || `Zone ${Number(zone.zone) + 1}`)}</td>
-            <td><input data-balance-value="${escapeHtml(zone.zone)}" type="number" min="0" max="255" value="${escapeHtml(zone.set_value ?? 0)}"></td>
-            <td>${escapeHtml(zone.current_value ?? "-")}</td>
-            <td>
-              <div class="service-actions">
-                <button type="button" data-service-action="balance-zone" data-zone="${escapeHtml(zone.zone)}">Set</button>
-                <span class="muted">${escapeHtml((group.status || {}).power_name || "-")}</span>
-              </div>
-            </td>
-          </tr>`;
-        }).join("")
-        : row(["-", "No Balance Data", "-", "-"]);
-      $("balance").innerHTML += `<tr><td colspan="4"><div class="service-actions"><button type="button" data-service-action="balance-start">Start Balance</button><button type="button" class="secondary" data-service-action="balance-stop">Stop Balance</button></div></td></tr>`;
+      $("balance").innerHTML = groupEntries
+        .map(([id, group]) => {
+          const zoneId = Number(id);
+          const balance = balanceByZone.get(zoneId) || {};
+          const status = group.status || {};
+          const hasBalance = balance.set_value !== undefined || balance.current_value !== undefined;
+          const maxOpening = Number(balance.set_value ?? 0);
+          const currentOpening = balance.current_value ?? status.percentage ?? "-";
+          return `<article class="card balance-row" data-balance-zone="${escapeHtml(zoneId)}">
+            <div class="balance-row-main">
+              <div class="card-title">${escapeHtml(group.name || `Zone ${zoneId + 1}`)}</div>
+              <div class="muted">Zone ${escapeHtml(zoneId + 1)} / ${escapeHtml(status.power_name || "-")}</div>
+            </div>
+            <div class="balance-row-value">
+              <div class="label">Current Opening</div>
+              <div class="small-value">${escapeHtml(currentOpening === "-" ? "-" : `${currentOpening}`)}</div>
+            </div>
+            <div class="balance-row-control">
+              <input data-balance-value="${escapeHtml(zoneId)}" type="range" min="0" max="255" value="${escapeHtml(maxOpening)}">
+              <input data-balance-number="${escapeHtml(zoneId)}" type="number" min="0" max="255" value="${escapeHtml(maxOpening)}" aria-label="Max Opening">
+              <div class="muted">${escapeHtml(hasBalance ? "Max Opening" : "Max Opening Pending")}</div>
+            </div>
+            <div class="balance-actions">
+              <span class="pill" data-balance-status="${escapeHtml(zoneId)}">Auto</span>
+            </div>
+          </article>`;
+        }).join("") || '<div class="muted">No Zones</div>';
+      $("balance").innerHTML += `<article class="card"><div class="card-title">Balance Mode</div><div class="muted">Start balance before setting individual zones, then stop when airflow balancing is complete.</div><div class="service-actions"><button type="button" data-service-action="balance-start">Start Balance</button><button type="button" class="secondary" data-service-action="balance-stop">Stop Balance</button></div></article>`;
       $("ac-setup").innerHTML = acs.map(([id, ac]) => {
         const base = ac.base || {};
         const settings = ac.settings || {};
@@ -2296,29 +2929,57 @@ INDEX_HTML = """<!doctype html>
             <div class="card-title">${escapeHtml(base.name || `AC ${Number(id) + 1}`)}</div>
             <div class="muted">Groups ${escapeHtml(text(base.group_start))}-${escapeHtml(Number.isInteger(base.group_start) && Number.isInteger(base.group_count) ? base.group_start + base.group_count - 1 : "-")} / Brand ${escapeHtml(text(base.brand))} / Hide Spill ${escapeHtml(settings.hide_spill_group ? "Yes" : "No")}</div>
             <div class="service-card-body">
+              <h3>Base</h3>
               <div class="field-grid">
                 <div class="field"><label>Name</label><input data-field="ac-name" maxlength="8" value="${escapeHtml(base.name || "")}"></div>
-                <div class="field"><label>Group Start</label><input data-field="ac-group-start" type="number" min="0" max="63" value="${escapeHtml(base.group_start ?? 0)}"></div>
-                <div class="field"><label>Group Count</label><input data-field="ac-group-count" type="number" min="0" max="63" value="${escapeHtml(base.group_count ?? 0)}"></div>
-                <div class="field"><label>Brand</label><input data-field="ac-brand" type="number" min="0" max="65535" value="${escapeHtml(base.brand ?? 0)}"></div>
+                <div class="field"><label>First Zone</label><input data-field="ac-group-start" type="number" min="0" max="63" value="${escapeHtml(base.group_start ?? 0)}"></div>
+                <div class="field"><label>Zone Count</label><input data-field="ac-group-count" type="number" min="0" max="63" value="${escapeHtml(base.group_count ?? 0)}"></div>
+              </div>
+              <details class="advanced-panel">
+                <summary>Advanced Base</summary>
+                <div class="field-grid">
+                  <div class="field"><label>Brand</label><input data-field="ac-brand" type="number" min="0" max="65535" value="${escapeHtml(base.brand ?? 0)}"></div>
+                </div>
+              </details>
+              <h3>Control</h3>
+              <div class="field-grid">
                 <div class="field"><label>Hide Spill</label><select data-field="hide-spill"><option value="true" ${settings.hide_spill_group ? "selected" : ""}>Yes</option><option value="false" ${!settings.hide_spill_group ? "selected" : ""}>No</option></select></div>
-                <div class="field"><label>Thermostat</label><input data-field="ctrl-thermostat" type="number" min="0" max="255" value="${escapeHtml(settings.ctrl_thermostat ?? 0)}"></div>
                 <div class="field"><label>Cool Adjust</label><input data-field="cool-adjust" type="number" min="-8" max="7" value="${escapeHtml(settings.cool_adjust ?? 0)}"></div>
                 <div class="field"><label>Heat Adjust</label><input data-field="heat-adjust" type="number" min="-8" max="7" value="${escapeHtml(settings.heat_adjust ?? 0)}"></div>
                 <div class="field"><label>Min Set</label><input data-field="min-setpoint" type="number" min="0" max="255" value="${escapeHtml(settings.min_setpoint ?? 16)}"></div>
                 <div class="field"><label>Max Set</label><input data-field="max-setpoint" type="number" min="0" max="255" value="${escapeHtml(settings.max_setpoint ?? 30)}"></div>
                 <div class="field"><label>Auto Off</label><select data-field="auto-off"><option value="true" ${settings.auto_off ? "selected" : ""}>On</option><option value="false" ${!settings.auto_off ? "selected" : ""}>Off</option></select></div>
                 <div class="field"><label>Time Limit</label><input data-field="on-time-limit" type="number" min="0" max="15" value="${escapeHtml(settings.on_time_limit ?? 0)}"></div>
-                ${["auto", "cool", "heat", "dry", "fan"].map((mode) => boolSelect(`mode-${mode}`, `Mode ${titleText(mode)}`, !!modes[mode])).join("")}
-                ${["auto", "quiet", "low", "medium", "high", "powerful", "turbo"].map((fan) => numberField(`fan-${fan}`, `Fan ${titleText(fan)}`, fans[fan] ?? 0, 0, 15)).join("")}
-                ${["auto", "touchpad_1", "touchpad_2", "average", "economy"].map((selector) => boolSelect(`selector-${selector}`, `Show ${titleText(selector)}`, !!selectors[selector])).join("")}
-                ${numberField("selector-groups-1", "Selector Zones 1-8", selectors.groups_1_8_bitmap ?? 0, 0, 255)}
-                ${numberField("selector-groups-2", "Selector Zones 9-16", selectors.groups_9_16_bitmap ?? 0, 0, 255)}
-                ${numberField("turbo-group", "Turbo Zone", turboRecord.group ?? 255, 0, 255)}
               </div>
+              <details class="advanced-panel">
+                <summary>Advanced Control</summary>
+                <div class="field-grid">
+                  <div class="field"><label>Thermostat Byte</label><input data-field="ctrl-thermostat" type="number" min="0" max="255" value="${escapeHtml(settings.ctrl_thermostat ?? 0)}"></div>
+                </div>
+              </details>
+              <h3>Modes</h3>
+              <div class="field-grid">${["auto", "cool", "heat", "dry", "fan"].map((mode) => boolSelect(`mode-${mode}`, `Mode ${titleText(mode)}`, !!modes[mode])).join("")}</div>
+              <details class="advanced-panel">
+                <summary>Fan Value Mapping</summary>
+                <div class="field-grid">${["auto", "quiet", "low", "medium", "high", "powerful", "turbo"].map((fan) => numberField(`fan-${fan}`, `Fan ${titleText(fan)}`, fans[fan] ?? 0, 0, 15)).join("")}</div>
+              </details>
+              <h3>Selector Visibility</h3>
+              <div class="field-grid">
+                ${["auto", "touchpad_1", "touchpad_2", "average", "economy"].map((selector) => boolSelect(`selector-${selector}`, `Show ${titleText(selector)}`, !!selectors[selector])).join("")}
+              </div>
+              <details class="advanced-panel">
+                <summary>Selector Zone Masks</summary>
+                <div class="field-grid">
+                  ${numberField("selector-groups-1", "Selector Zones 1-8", selectors.groups_1_8_bitmap ?? 0, 0, 255)}
+                  ${numberField("selector-groups-2", "Selector Zones 9-16", selectors.groups_9_16_bitmap ?? 0, 0, 255)}
+                </div>
+              </details>
+              <h3>Turbo</h3>
+              <div class="field-grid">${numberField("turbo-group", "Turbo Zone", turboRecord.group ?? 255, 0, 255)}</div>
               <div class="service-actions">
                 <button type="button" data-service-action="ac-base-info" data-ac="${escapeHtml(id)}">Save AC Base</button>
                 <button type="button" class="secondary" data-service-action="ac-setting-new" data-ac="${escapeHtml(id)}">Save AC Settings</button>
+                <button type="button" class="secondary" data-service-action="reset-temp-offsets" data-ac="${escapeHtml(id)}">Reset Offsets</button>
                 <button type="button" class="secondary" data-service-action="turbo-group" data-ac="${escapeHtml(id)}">Save Turbo Zone</button>
               </div>
             </div>
@@ -2346,14 +3007,19 @@ INDEX_HTML = """<!doctype html>
           <div class="card-title">Parameters</div>
           <div class="field-grid">
             ${numberField("group-count", "Groups", system.group_count ?? (groupEntries.length || 1), 1, 16)}
-            ${numberField("damper-rpm", "Damper RPM", system.damper_rpm ?? 100, 0, 255)}
-            ${numberField("touchpad-1-location", "Touchpad 1 Location", system.touchpad_1_location ?? 255, 0, 255)}
-            ${numberField("touchpad-2-location", "Touchpad 2 Location", system.touchpad_2_location ?? 255, 0, 255)}
             ${boolSelect("ac-button-blocked", "Block AC Button", !!system.ac_button_blocked)}
             ${boolSelect("param-show-outside-temp", "Outside Temp", !!system.show_outside_temp)}
             ${boolSelect("lock-to-temp-control", "Lock Temp Control", !!system.lock_to_temp_control)}
             ${boolSelect("param-show-control-sensor", "Control Sensor", !!system.show_control_sensor)}
           </div>
+          <details class="advanced-panel">
+            <summary>Advanced Parameters</summary>
+            <div class="field-grid">
+              ${numberField("damper-rpm", "Damper RPM", system.damper_rpm ?? 100, 0, 255)}
+              ${numberField("touchpad-1-location", "Touchpad 1 Location", system.touchpad_1_location ?? 255, 0, 255)}
+              ${numberField("touchpad-2-location", "Touchpad 2 Location", system.touchpad_2_location ?? 255, 0, 255)}
+            </div>
+          </details>
           <div class="service-actions"><button type="button" data-service-action="parameters">Save Parameters</button></div>
         </article>
         ${metric("Device ID", system.device_id || "-")}
@@ -2372,12 +3038,14 @@ INDEX_HTML = """<!doctype html>
             ${numberField("service-runtime-hours", "Runtime Hours", service.runtime_hours ?? 0, 0, 4294967295)}
           </div>
           <div class="service-actions"><button type="button" data-service-action="service-contact">Save Service</button></div>
-        </article>
-        ${metric("Password Pages", Object.keys(state.password || {}).length)}
-        ${metric("Last LED", (state.last_led || {}).led_code ?? "-")}
-        ${metric("Supply Air", supplyAirText(system.supply_air || []) || "-")}
-        ${metric("Touchpads", (((system.sensor_list || {}).touchpad_addresses) || []).map((item) => `0x${Number(item).toString(16).toUpperCase()}`).join(", ") || "-")}
-        ${metric("Runtime", (system.expanded || {}).software_version || "-")}`;
+        </article>`;
+      $("system-debug").innerHTML = [
+        metric("Password Pages", Object.keys(state.password || {}).length),
+        metric("Last LED", (state.last_led || {}).led_code ?? "-"),
+        metric("Supply Air", supplyAirText(system.supply_air || []) || "-"),
+        metric("Touchpads", (((system.sensor_list || {}).touchpad_addresses) || []).map((item) => `0x${Number(item).toString(16).toUpperCase()}`).join(", ") || "-"),
+        metric("Runtime", (system.expanded || {}).software_version || "-")
+      ].join("");
     }
 
     function renderState(payload, eventsPayload = {}) {
@@ -2445,20 +3113,43 @@ INDEX_HTML = """<!doctype html>
       renderProgramSupport(state);
       renderServicePages(state);
 
-      const sensors = state.sensors || {};
-      $("sensors").innerHTML = Object.entries(sensors)
-        .sort(([a], [b]) => Number(a) - Number(b))
-        .map(([id, sensor]) => row([
-          id,
-          sensor.sensor_name,
-          temp(sensor.temperature),
-          sensor.signal !== undefined && sensor.signal !== null ? sensor.signal : "-",
-          [
-            sensor.kind,
-            titleText(sensor.status || (sensor.present === false ? "missing" : sensor.listed ? "listed" : "-")),
-            sensor.battery !== undefined && sensor.battery !== null ? `Battery ${sensor.battery}` : "",
-          ].filter(Boolean).join(" / ")
-        ])).join("") || row(["-", "No Sensor Data", "-", "-", "-"]);
+      const sensorRows = sensorRowsFromState(state);
+      $("sensors").innerHTML = sensorRows
+        .sort((a, b) => String(a.address || a.id).localeCompare(String(b.address || b.id), undefined, {numeric: true}))
+        .map((sensor) => {
+          const mapped = (sensor.mapped_groups || []).length ? sensor.mapped_groups.join(", ") : "-";
+          const currentTemp = finiteNumber(sensor.temperature);
+          const canCalibrate = sensor.kind !== "supply_air" && currentTemp !== null && sensor.present !== false;
+          const calibration = canCalibrate
+            ? `<div class="sensor-calibration">
+                <input type="range" min="-10" max="40" step="1" value="${escapeHtml(Math.round(currentTemp))}" data-sensor-temperature="${escapeHtml(sensor.id)}">
+                <span class="pill" data-sensor-temperature-value="${escapeHtml(sensor.id)}">${escapeHtml(formatTemp(Math.round(currentTemp)))}</span>
+              </div>`
+            : '<div class="muted">Calibration Unavailable</div>';
+          const diagnostics = [
+            sensor.signal !== undefined && sensor.signal !== null ? `Signal ${sensor.signal}` : "",
+            sensor.battery !== undefined && sensor.battery !== null ? `Battery ${sensor.battery}${sensor.low_battery ? " Low" : ""}` : "",
+            sensor.mac ? `MAC ${sensor.mac}` : "",
+          ].filter(Boolean).join(" / ") || "-";
+          return `<article class="card sensor-row" data-sensor-row="${escapeHtml(sensor.id)}">
+            <div class="sensor-row-main">
+              <div class="card-title">${escapeHtml(sensorDisplayName(sensor))}</div>
+              <div class="muted">${escapeHtml(sensor.address || sensor.id || "-")} / ${escapeHtml(sensorKindLabel(sensor.kind))}</div>
+            </div>
+            <div class="sensor-row-temp">
+              <div class="label">${escapeHtml(sensor.kind === "supply_air" ? "Supply Air Temp" : sensor.kind === "touchpad" ? "Touchpad Temp" : "Sensor Temp")}</div>
+              <div class="small-value">${escapeHtml(temp(sensor.temperature))}</div>
+            </div>
+            <div class="sensor-row-meta">
+              ${sensorStatusPill(sensor)}
+              ${sensor.low_battery ? '<span class="pill warn">Battery</span>' : ""}
+            </div>
+            <div>
+              ${calibration}
+              <div class="muted">${escapeHtml(`Mapped ${mapped}`)}<br>${escapeHtml(diagnostics)}</div>
+            </div>
+          </article>`;
+        }).join("") || '<article class="card"><div class="card-title">No Sensor Data</div><div class="muted">Pairing or sensor list data has not been received yet.</div></article>';
     }
 
     function renderEvents(payload) {
@@ -2483,6 +3174,29 @@ INDEX_HTML = """<!doctype html>
       return response.json();
     }
 
+    function scheduleBalanceCommit(zone) {
+      if (balanceCommitTimer) clearTimeout(balanceCommitTimer);
+      const status = document.querySelector(`[data-balance-status="${zone}"]`);
+      if (status) status.textContent = "Pending";
+      balanceCommitTimer = setTimeout(async () => {
+        try {
+          const value = Number(document.querySelector(`[data-balance-number="${zone}"]`).value);
+          await sendCommand("balance_start", {
+            current_values: balanceValuesFromPage(),
+            zone,
+            value,
+          });
+          const latest = document.querySelector(`[data-balance-status="${zone}"]`);
+          if (latest) latest.textContent = "Sent";
+          setTimeout(refresh, 300);
+        } catch (err) {
+          setStatus({ok: false, error: err.message});
+          const latest = document.querySelector(`[data-balance-status="${zone}"]`);
+          if (latest) latest.textContent = "Error";
+        }
+      }, 450);
+    }
+
     async function sendAdaptiveConfig(data) {
       const response = await fetch(apiPath("adaptive"), {
         method: "POST",
@@ -2492,6 +3206,19 @@ INDEX_HTML = """<!doctype html>
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         throw new Error(payload.detail || `Adaptive update failed: ${response.status}`);
+      }
+      return response.json();
+    }
+
+    async function sendAdaptiveModelAction(data) {
+      const response = await fetch(apiPath("adaptive/model"), {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail || `Adaptive model update failed: ${response.status}`);
       }
       return response.json();
     }
@@ -2523,7 +3250,28 @@ INDEX_HTML = """<!doctype html>
       applyTheme();
     });
 
-    $("view-settings").addEventListener("click", async (event) => {
+    $("view-adaptive").addEventListener("click", async (event) => {
+      const modelButton = event.target.closest("button[data-adaptive-model-action]");
+      if (modelButton) {
+        const action = modelButton.dataset.adaptiveModelAction;
+        modelButton.disabled = true;
+        const previous = modelButton.textContent;
+        modelButton.textContent = "Working";
+        try {
+          await sendAdaptiveModelAction({
+            action,
+            zone: modelButton.dataset.zone === undefined ? undefined : Number(modelButton.dataset.zone),
+            enabled: modelButton.dataset.enabled === undefined ? undefined : modelButton.dataset.enabled === "true",
+          });
+          setTimeout(refresh, 300);
+        } catch (err) {
+          alert(err.message || err);
+        } finally {
+          modelButton.disabled = false;
+          modelButton.textContent = previous;
+        }
+        return;
+      }
       const button = event.target.closest("button[data-adaptive-save]");
       if (!button) return;
       button.disabled = true;
@@ -2538,6 +3286,13 @@ INDEX_HTML = """<!doctype html>
           heat_comfort_temp: Number($("adaptive-heat-comfort-temp").value),
           check_interval: Number($("adaptive-check-interval").value),
           command_cooldown: Number($("adaptive-command-cooldown").value),
+          learning_mode: $("adaptive-mpc-control").value,
+          control_zones: Array.from(document.querySelectorAll("[data-adaptive-control-zone]"))
+            .filter((input) => input.checked)
+            .map((input) => Number(input.dataset.adaptiveControlZone)),
+          mpc_horizon_hours: Number($("adaptive-mpc-horizon-hours").value),
+          compressor_min_run_time: Number($("adaptive-compressor-min-run-time").value),
+          compressor_min_off_time: Number($("adaptive-compressor-min-off-time").value),
         });
         setTimeout(refresh, 300);
       } catch (err) {
@@ -2563,6 +3318,52 @@ INDEX_HTML = """<!doctype html>
     });
     document.addEventListener("change", (event) => {
       if (event.target && event.target.matches && event.target.matches("input, select, textarea")) markEditing();
+    });
+
+    $("view-settings").addEventListener("input", (event) => {
+      const range = event.target.closest("input[data-balance-value]");
+      const number = event.target.closest("input[data-balance-number]");
+      const sensorTemp = event.target.closest("input[data-sensor-temperature]");
+      if (range) {
+        const peer = document.querySelector(`[data-balance-number="${range.dataset.balanceValue}"]`);
+        if (peer) peer.value = range.value;
+        scheduleBalanceCommit(Number(range.dataset.balanceValue));
+      } else if (number) {
+        const peer = document.querySelector(`[data-balance-value="${number.dataset.balanceNumber}"]`);
+        if (peer) peer.value = number.value;
+        scheduleBalanceCommit(Number(number.dataset.balanceNumber));
+      } else if (sensorTemp) {
+        const value = document.querySelector(`[data-sensor-temperature-value="${sensorTemp.dataset.sensorTemperature}"]`);
+        if (value) value.textContent = formatTemp(Number(sensorTemp.value));
+      }
+    });
+
+    $("view-settings").addEventListener("change", async (event) => {
+      const sensorTemp = event.target.closest("input[data-sensor-temperature]");
+      if (!sensorTemp) return;
+      const sensor = Number(sensorTemp.dataset.sensorTemperature);
+      const temperature = Number(sensorTemp.value);
+      const previous = Number(sensorTemp.defaultValue);
+      const value = document.querySelector(`[data-sensor-temperature-value="${sensorTemp.dataset.sensorTemperature}"]`);
+      if (temperature === previous) return;
+      if (!window.confirm(`Revise sensor temperature to ${formatTemp(temperature)}?`)) {
+        sensorTemp.value = previous;
+        if (value) value.textContent = formatTemp(previous);
+        return;
+      }
+      try {
+        sensorTemp.disabled = true;
+        await sendCommand("sensor_temperature", {sensor, temperature});
+        sensorTemp.defaultValue = String(temperature);
+        if (value) value.textContent = formatTemp(temperature);
+        setTimeout(refresh, 300);
+      } catch (err) {
+        sensorTemp.value = previous;
+        if (value) value.textContent = formatTemp(previous);
+        setStatus({ok: false, error: err.message});
+      } finally {
+        sensorTemp.disabled = false;
+      }
     });
 
     $("view-settings").addEventListener("click", async (event) => {
@@ -2597,16 +3398,22 @@ INDEX_HTML = """<!doctype html>
           const acSpillTypes = Array.from(document.querySelectorAll("[data-spill-ac]"))
             .sort((a, b) => Number(a.dataset.spillAc) - Number(b.dataset.spillAc))
             .map((select) => Number(select.value));
+          const hideSpillByAc = new Map(Array.from(document.querySelectorAll("[data-spill-hide-ac]"))
+            .map((input) => [Number(input.dataset.spillHideAc), input.checked]));
+          const records = acSettingRecordsFromState();
+          let hideChanged = false;
+          records.forEach((record) => {
+            if (!hideSpillByAc.has(Number(record.ac))) return;
+            const hideSpill = hideSpillByAc.get(Number(record.ac));
+            hideChanged = hideChanged || record.hide_spill_group !== hideSpill;
+            record.hide_spill_group = hideSpill;
+          });
           await sendCommand("spill", {ac_spill_types: acSpillTypes, spill_groups: spillGroups});
+          if (hideChanged) {
+            await sendCommand("ac_setting_new", {records});
+          }
         } else if (action === "balance-start") {
           await sendCommand("balance_start", {current_values: balanceValuesFromPage()});
-        } else if (action === "balance-zone") {
-          const zone = Number(button.dataset.zone);
-          await sendCommand("balance_start", {
-            current_values: balanceValuesFromPage(),
-            zone,
-            value: Number(document.querySelector(`[data-balance-value="${zone}"]`).value)
-          });
         } else if (action === "balance-stop") {
           await sendCommand("balance_stop", {current_values: balanceValuesFromPage()});
         } else if (action === "ac-base-info") {
@@ -2630,39 +3437,19 @@ INDEX_HTML = """<!doctype html>
           const records = acSettingRecordsFromState();
           const record = records.find((item) => item.ac === ac);
           if (!record) throw new Error(`No AC setting state for AC ${ac + 1}`);
-          record.hide_spill_group = fieldBool(card, "hide-spill");
-          record.ctrl_thermostat = fieldNumber(card, "ctrl-thermostat");
-          record.cool_adjust = fieldNumber(card, "cool-adjust");
-          record.heat_adjust = fieldNumber(card, "heat-adjust");
-          record.min_setpoint = fieldNumber(card, "min-setpoint");
-          record.max_setpoint = fieldNumber(card, "max-setpoint");
-          record.auto_off = fieldBool(card, "auto-off");
-          record.on_time_limit = fieldNumber(card, "on-time-limit");
-          record.modes = {
-            auto: fieldBool(card, "mode-auto"),
-            cool: fieldBool(card, "mode-cool"),
-            heat: fieldBool(card, "mode-heat"),
-            dry: fieldBool(card, "mode-dry"),
-            fan: fieldBool(card, "mode-fan")
-          };
-          record.fan_values = {
-            auto: fieldNumber(card, "fan-auto"),
-            quiet: fieldNumber(card, "fan-quiet"),
-            low: fieldNumber(card, "fan-low"),
-            medium: fieldNumber(card, "fan-medium"),
-            high: fieldNumber(card, "fan-high"),
-            powerful: fieldNumber(card, "fan-powerful"),
-            turbo: fieldNumber(card, "fan-turbo")
-          };
-          record.selector_visibility = {
-            auto: fieldBool(card, "selector-auto"),
-            touchpad_1: fieldBool(card, "selector-touchpad_1"),
-            touchpad_2: fieldBool(card, "selector-touchpad_2"),
-            average: fieldBool(card, "selector-average"),
-            economy: fieldBool(card, "selector-economy"),
-            groups_1_8_bitmap: fieldNumber(card, "selector-groups-1"),
-            groups_9_16_bitmap: fieldNumber(card, "selector-groups-2")
-          };
+          applyAcSettingsCard(record, card);
+          await sendCommand("ac_setting_new", {records});
+        } else if (action === "reset-temp-offsets") {
+          const ac = Number(button.dataset.ac);
+          const card = button.closest("[data-service-ac]");
+          const records = acSettingRecordsFromState();
+          const record = records.find((item) => item.ac === ac);
+          if (!record) throw new Error(`No AC setting state for AC ${ac + 1}`);
+          card.querySelector('[data-field="cool-adjust"]').value = 0;
+          card.querySelector('[data-field="heat-adjust"]').value = 0;
+          applyAcSettingsCard(record, card);
+          record.cool_adjust = 0;
+          record.heat_adjust = 0;
           await sendCommand("ac_setting_new", {records});
         } else if (action === "turbo-group") {
           const ac = Number(button.dataset.ac);
@@ -2889,10 +3676,9 @@ INDEX_HTML = """<!doctype html>
           if (!record) throw new Error(`No program state for program ${program + 1}`);
           record.name = card.querySelector('[data-field="program-name"]').value;
           record.enabled = card.querySelector('[data-field="program-enabled"]').value === "true";
-          record.days_bitmap = Number(card.querySelector('[data-field="program-days"]').value);
-          record.groups_1_8_bitmap = Number(card.querySelector('[data-field="program-groups-1"]').value);
-          record.groups_9_16_bitmap = Number(card.querySelector('[data-field="program-groups-2"]').value);
-          record.active_ac_bitmap = Number(card.querySelector('[data-field="program-acs"]').value);
+          record.days_bitmap = bitmapFromValues(checkedValues(card, "[data-program-day]"));
+          Object.assign(record, groupBitmapFromValues(checkedValues(card, "[data-program-zone]")));
+          record.active_ac_bitmap = bitmapFromValues(checkedValues(card, "[data-program-ac]"));
           record.on_timer = timerFromCard(card, "on");
           record.off_timer = timerFromCard(card, "off");
           record.on_setpoint = Number(card.querySelector('[data-field="program-on-setpoint"]').value);

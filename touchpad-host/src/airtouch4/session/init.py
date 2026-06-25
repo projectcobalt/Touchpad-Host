@@ -117,6 +117,7 @@ def default_init_steps() -> list[InitStep]:
             InitStep(0x51, name="turbo group", capability="groups"),
             InitStep(0x67, name="grouping", required=True, capability="groups"),
             InitStep(0x69, name="spill", required=True, capability="groups"),
+            InitStep(0x63, name="balance", capability="groups"),
             InitStep(0x71, name="sensor list", required=True, capability="sensors"),
         ]
     )

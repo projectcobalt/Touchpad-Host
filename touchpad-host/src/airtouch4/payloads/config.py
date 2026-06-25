@@ -221,11 +221,12 @@ def decode_sensor_list(payload: bytes) -> dict[str, Any]:
 def decode_set_sensor_temp(payload: bytes) -> dict[str, Any]:
     if len(payload) < 2:
         return {"type": "set_sensor_temp", "truncated": True, "raw": hex_bytes(payload)}
+    temperature = payload[1] - 256 if payload[1] > 127 else payload[1]
     return {
         "type": "set_sensor_temp",
         "sensor": payload[0],
         "temperature_raw": payload[1],
-        "temperature": parse_internal_temperature(payload[1]),
+        "temperature": temperature,
         "tail": hex_bytes(payload[2:]),
     }
 

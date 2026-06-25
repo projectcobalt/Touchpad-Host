@@ -145,7 +145,11 @@ def _build_command_spec(action: str, data: dict[str, Any]) -> commands.CommandSp
         if action == "balance_stop":
             return commands.balance_stop_command(_optional_int_list(data, "current_values"))
         if action == "sensor_temperature":
-            return commands.sensor_temperature_command(_int(data, "sensor"), _int(data, "encoded_temperature"))
+            temperature = _optional_int(data, "temperature")
+            if temperature is None:
+                raw_temperature = _int(data, "encoded_temperature")
+                temperature = raw_temperature - 256 if raw_temperature > 127 else raw_temperature
+            return commands.sensor_temperature_command(_int(data, "sensor"), temperature)
         if action == "raw":
             return commands.raw_command(_int(data, "command"), _hex_bytes(data, "payload", default=b""))
     except commands.CommandBuildError as exc:

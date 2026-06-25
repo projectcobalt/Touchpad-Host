@@ -157,6 +157,7 @@ class AirTouchState:
             "groups": self.groups,
             "active_groups": self.active_groups(),
             "sensors": self.sensors,
+            "sensor_view": self.sensor_view(),
             "favourites": self.favourites,
             "programs": self.programs,
             "service": self.service,
@@ -202,6 +203,56 @@ class AirTouchState:
         elif status in {"ok", "lost"}:
             current["present"] = True
         current.setdefault("listed", None)
+
+    def sensor_view(self) -> list[dict[str, Any]]:
+        mapped: dict[int, list[str]] = {}
+        for group_id, group in self.groups.items():
+            grouping = group.get("grouping") or {}
+            status = group.get("status") or {}
+            sensor = grouping.get("thermostat", status.get("sensor"))
+            if not isinstance(sensor, int) or sensor == 255:
+                continue
+            mapped.setdefault(sensor, []).append(group.get("name") or f"Zone {group_id + 1}")
+
+        rows: list[dict[str, Any]] = []
+        for sensor, data in sorted(self.sensors.items()):
+            rows.append({
+                "id": sensor,
+                "address": f"0x{sensor:02X}" if sensor >= 0x80 else str(sensor),
+                "name": data.get("sensor_name") or SENSOR_SELECTORS.get(sensor, f"rf_sensor_{sensor}"),
+                "kind": data.get("kind") or ("touchpad" if sensor in (0x90, 0x91) else "rf"),
+                "temperature": data.get("temperature"),
+                "status": data.get("status") or ("missing" if data.get("present") is False else "listed" if data.get("listed") else "unknown"),
+                "present": data.get("present"),
+                "listed": data.get("listed"),
+                "signal": data.get("signal"),
+                "battery": data.get("battery"),
+                "low_battery": data.get("low_battery"),
+                "mac": data.get("mac"),
+                "mapped_groups": mapped.get(sensor, []),
+            })
+
+        for supply in self.system.get("supply_air", []) or []:
+            ac = supply.get("ac")
+            if not isinstance(ac, int):
+                continue
+            rows.append({
+                "id": f"supply_air_{ac}",
+                "address": f"SA{ac + 1}",
+                "name": f"Supply Air {ac + 1}",
+                "kind": "supply_air",
+                "temperature": supply.get("temperature"),
+                "status": supply.get("status") or "unknown",
+                "present": supply.get("status") == "ok",
+                "listed": True,
+                "signal": None,
+                "battery": None,
+                "low_battery": None,
+                "mac": None,
+                "mapped_groups": [],
+                "ac": ac,
+            })
+        return rows
 
     def _remember_group_temperature(self, record: dict[str, Any]) -> None:
         group = record.get("group")

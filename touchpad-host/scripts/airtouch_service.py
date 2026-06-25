@@ -43,8 +43,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--force-source-address", action="store_true")
     parser.add_argument("--ui-theme", default="system", choices=("system", "light", "dark"))
     parser.add_argument("--weather-entity", default="")
+    parser.add_argument("--forecast-weather-entity", default="")
     parser.add_argument("--indoor-temperature-entity", default="")
     parser.add_argument("--indoor-humidity-entity", default="")
+    parser.add_argument("--solar-irradiance-entity", default="")
+    parser.add_argument("--cloud-cover-entity", default="")
     parser.add_argument("--weather-poll-interval", type=float, default=60.0)
     parser.add_argument("--adaptive-mode", default="off", choices=("off", "recommend", "auto_off", "adaptive"))
     parser.add_argument("--adaptive-cool-diff", type=int, default=4)
@@ -53,6 +56,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--adaptive-heat-comfort-temp", type=int, default=20)
     parser.add_argument("--adaptive-check-interval", type=float, default=60.0)
     parser.add_argument("--adaptive-command-cooldown", type=float, default=300.0)
+    parser.add_argument("--adaptive-learning-mode", default="off", choices=("off", "control"))
+    parser.add_argument("--adaptive-mpc-horizon-hours", type=int, default=6)
+    parser.add_argument("--adaptive-compressor-min-run-time", type=float, default=0.0)
+    parser.add_argument("--adaptive-compressor-min-off-time", type=float, default=0.0)
+    parser.add_argument("--adaptive-compressor-groups", default="")
+    parser.add_argument("--adaptive-config-path", type=Path, default=Path("/data/adaptive_config.json"))
+    parser.add_argument("--adaptive-learning-path", type=Path, default=Path("/data/adaptive_learning.json"))
     parser.add_argument("--mqtt-enabled", action="store_true")
     parser.add_argument("--mqtt-host", default="", help="MQTT broker host. Blank defaults to the HA Mosquitto add-on host core-mosquitto.")
     parser.add_argument("--mqtt-port", type=int, default=1883)
@@ -118,8 +128,11 @@ def main(argv: list[str] | None = None) -> int:
             ui_theme=args.ui_theme,
             weather=HomeAssistantApiConfig(
                 weather_entity=args.weather_entity,
+                forecast_weather_entity=args.forecast_weather_entity,
                 indoor_temperature_entity=args.indoor_temperature_entity,
                 indoor_humidity_entity=args.indoor_humidity_entity,
+                solar_irradiance_entity=args.solar_irradiance_entity,
+                cloud_cover_entity=args.cloud_cover_entity,
             ),
             weather_poll_interval=args.weather_poll_interval,
             adaptive=AdaptiveConfig(
@@ -130,7 +143,14 @@ def main(argv: list[str] | None = None) -> int:
                 heat_comfort_temp=args.adaptive_heat_comfort_temp,
                 check_interval=args.adaptive_check_interval,
                 command_cooldown=args.adaptive_command_cooldown,
+                learning_mode=args.adaptive_learning_mode,
+                mpc_horizon_hours=args.adaptive_mpc_horizon_hours,
+                compressor_min_run_time=args.adaptive_compressor_min_run_time,
+                compressor_min_off_time=args.adaptive_compressor_min_off_time,
+                compressor_groups=args.adaptive_compressor_groups,
             ),
+            adaptive_config_path=args.adaptive_config_path,
+            adaptive_learning_path=args.adaptive_learning_path,
             mqtt=MqttConfig(
                 enabled=args.mqtt_enabled,
                 host=args.mqtt_host,

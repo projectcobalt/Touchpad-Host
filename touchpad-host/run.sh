@@ -39,16 +39,13 @@ HEARTBEAT_PAYLOAD="$(config heartbeat_payload "")"
 BUS_LOG="$(config bus_log true)"
 UI_THEME="$(config ui_theme system)"
 WEATHER_ENTITY="$(config weather_entity "")"
+FORECAST_WEATHER_ENTITY="$(config forecast_weather_entity "")"
 INDOOR_TEMPERATURE_ENTITY="$(config indoor_temperature_entity "")"
 INDOOR_HUMIDITY_ENTITY="$(config indoor_humidity_entity "")"
+SOLAR_IRRADIANCE_ENTITY="$(config solar_irradiance_entity "")"
+CLOUD_COVER_ENTITY="$(config cloud_cover_entity "")"
 WEATHER_POLL_INTERVAL="$(config weather_poll_interval 60.0)"
-ADAPTIVE_MODE="$(config adaptive_mode off)"
-ADAPTIVE_COOL_DIFF="$(config adaptive_cool_diff 4)"
-ADAPTIVE_COOL_COMFORT_TEMP="$(config adaptive_cool_comfort_temp 24)"
-ADAPTIVE_HEAT_DIFF="$(config adaptive_heat_diff 4)"
-ADAPTIVE_HEAT_COMFORT_TEMP="$(config adaptive_heat_comfort_temp 20)"
-ADAPTIVE_CHECK_INTERVAL="$(config adaptive_check_interval 60.0)"
-ADAPTIVE_COMMAND_COOLDOWN="$(config adaptive_command_cooldown 300.0)"
+ADAPTIVE_COMPRESSOR_GROUPS="$(config adaptive_compressor_groups "")"
 MQTT_ENABLED="$(config mqtt_enabled false)"
 MQTT_HOST="$(config mqtt_host "")"
 MQTT_PORT="$(config mqtt_port 1883)"
@@ -92,15 +89,6 @@ case "${PROTOCOL}" in
         ;;
 esac
 
-case "${ADAPTIVE_MODE}" in
-    off|recommend|auto_off|adaptive)
-        ;;
-    *)
-        echo "Invalid adaptive_mode: ${ADAPTIVE_MODE}" >&2
-        exit 2
-        ;;
-esac
-
 export PYTHONPATH=/opt/airtouch4/src
 
 RESOLVED_HEARTBEAT_PAYLOAD="$(
@@ -127,16 +115,15 @@ ARGS=(
     "--heartbeat-payload" "${RESOLVED_HEARTBEAT_PAYLOAD}"
     "--ui-theme" "${UI_THEME}"
     "--weather-entity" "${WEATHER_ENTITY}"
+    "--forecast-weather-entity" "${FORECAST_WEATHER_ENTITY}"
     "--indoor-temperature-entity" "${INDOOR_TEMPERATURE_ENTITY}"
     "--indoor-humidity-entity" "${INDOOR_HUMIDITY_ENTITY}"
+    "--solar-irradiance-entity" "${SOLAR_IRRADIANCE_ENTITY}"
+    "--cloud-cover-entity" "${CLOUD_COVER_ENTITY}"
     "--weather-poll-interval" "${WEATHER_POLL_INTERVAL}"
-    "--adaptive-mode" "${ADAPTIVE_MODE}"
-    "--adaptive-cool-diff" "${ADAPTIVE_COOL_DIFF}"
-    "--adaptive-cool-comfort-temp" "${ADAPTIVE_COOL_COMFORT_TEMP}"
-    "--adaptive-heat-diff" "${ADAPTIVE_HEAT_DIFF}"
-    "--adaptive-heat-comfort-temp" "${ADAPTIVE_HEAT_COMFORT_TEMP}"
-    "--adaptive-check-interval" "${ADAPTIVE_CHECK_INTERVAL}"
-    "--adaptive-command-cooldown" "${ADAPTIVE_COMMAND_COOLDOWN}"
+    "--adaptive-compressor-groups" "${ADAPTIVE_COMPRESSOR_GROUPS}"
+    "--adaptive-config-path" "/data/adaptive_config.json"
+    "--adaptive-learning-path" "/data/adaptive_learning.json"
     "--mqtt-host" "${MQTT_HOST}"
     "--mqtt-port" "${MQTT_PORT}"
     "--mqtt-username" "${MQTT_USERNAME}"

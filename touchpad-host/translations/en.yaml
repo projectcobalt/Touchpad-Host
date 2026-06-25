@@ -47,12 +47,21 @@ configuration:
   weather_entity:
     name: Weather Entity
     description: Optional Home Assistant weather entity to display in the app header, for example weather.home.
+  forecast_weather_entity:
+    name: Forecast Weather Entity
+    description: Optional Home Assistant weather entity used for hourly adaptive forecast data. Leave blank to disable forecast-aware control.
   indoor_temperature_entity:
     name: Indoor Temperature Entity
     description: Optional Home Assistant temperature sensor entity to display under the outside weather chip.
   indoor_humidity_entity:
     name: Indoor Humidity Entity
     description: Optional Home Assistant humidity sensor entity to display under the outside weather chip.
+  solar_irradiance_entity:
+    name: Solar Irradiance Entity
+    description: Optional Home Assistant sensor entity for solar irradiance, used by adaptive learning and MPC when available.
+  cloud_cover_entity:
+    name: Cloud Cover Entity
+    description: Optional Home Assistant sensor entity for cloud cover percentage, used as a conservative solar fallback.
   weather_poll_interval:
     name: Weather Poll Interval
     description: Seconds between local Home Assistant weather and indoor sensor reads.
@@ -77,6 +86,18 @@ configuration:
   adaptive_command_cooldown:
     name: Adaptive Command Cooldown
     description: Minimum seconds before repeating the same adaptive command.
+  adaptive_learning_mode:
+    name: Adaptive Learning Mode
+    description: Off disables room learning, Learn observes room response only, and Control lets learned MPC proposals refine adaptive targets.
+  adaptive_mpc_horizon_hours:
+    name: Adaptive MPC Horizon
+    description: Number of forecast hours the room-response planner evaluates when learning control is enabled.
+  adaptive_compressor_min_run_time:
+    name: Compressor Minimum Run
+    description: Minimum seconds an AC should stay on before adaptive Auto Off may turn it off.
+  adaptive_compressor_min_off_time:
+    name: Compressor Minimum Off
+    description: Minimum seconds an AC should stay off before future adaptive start logic may turn it on.
   mqtt_enabled:
     name: MQTT Publishing
     description: Publish AirTouch state and read-only climate discovery to MQTT.

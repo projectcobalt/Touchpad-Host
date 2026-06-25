@@ -107,10 +107,10 @@ def set_pair_sensor(pairing: bool) -> bytes:
     return bytes((0x80 if pairing else 0x00,))
 
 
-def set_sensor_temperature(sensor: int, encoded_temperature: int) -> bytes:
+def set_sensor_temperature(sensor: int, temperature: int) -> bytes:
     sensor = _check_range("sensor", sensor, 0, 255)
-    encoded_temperature = _check_range("encoded_temperature", encoded_temperature, 0, 255)
-    return bytes((sensor, encoded_temperature))
+    temperature = _check_range("temperature", temperature, -10, 40)
+    return bytes((sensor, temperature & 0xFF))
 
 
 def set_datetime(*, year: int, month: int, day: int, weekday: int, hour: int, minute: int, second: int) -> bytes:
@@ -652,8 +652,8 @@ def pair_sensor_command(pairing: bool) -> CommandSpec:
     return CommandSpec(0x70, set_pair_sensor(pairing))
 
 
-def sensor_temperature_command(sensor: int, encoded_temperature: int) -> CommandSpec:
-    return CommandSpec(0x72, set_sensor_temperature(sensor, encoded_temperature))
+def sensor_temperature_command(sensor: int, temperature: int) -> CommandSpec:
+    return CommandSpec(0x72, set_sensor_temperature(sensor, temperature))
 
 
 def raw_command(command: int, payload: bytes | bytearray = b"") -> CommandSpec:

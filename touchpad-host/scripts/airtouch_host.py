@@ -32,6 +32,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--state-log", type=Path, help="Optional state snapshot JSONL log.")
     parser.add_argument("--command-file", type=Path, help="Optional JSONL transactions to enqueue after init.")
     parser.add_argument("--snapshot-interval", type=float, default=10.0, help="State snapshot interval in seconds.")
+    parser.add_argument("--protocol", default="auto", choices=("auto", "at4", "at5"), help="AirTouch protocol profile. AT4 is implemented; AT5 is detected but not yet live-control capable.")
     parser.add_argument("--detect-seconds", type=float, default=3.0, help="Address-detection listen window.")
     parser.add_argument("--source-address", default="auto", help="Preferred touchpad source address: auto, 0x90, or 0x91. Default: auto.")
     parser.add_argument("--force-source-address", action="store_true", help="Use --source-address even if discovery sees that address occupied.")
@@ -117,6 +118,7 @@ def main(argv: list[str] | None = None) -> int:
                     auto_address=True,
                     force_source_address=args.force_source_address,
                     init_transactions=True,
+                    protocol=args.protocol,
                 ),
             )
             if args.command_file is not None:
