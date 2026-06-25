@@ -1,5 +1,5 @@
 name: OpenAirtouch
-version: "0.1.26"
+version: "0.1.27"
 slug: airtouch4_touchpad_host
 description: Python host for the AirTouch internal RS485 touchpad protocol.
 arch:

@@ -21,6 +21,7 @@ class AirTouchState:
     programs: dict[int, dict[str, Any]] = field(default_factory=dict)
     service: dict[str, Any] = field(default_factory=dict)
     password: dict[str, Any] = field(default_factory=dict)
+    console: dict[str, Any] = field(default_factory=dict)
     last_led: dict[str, Any] = field(default_factory=dict)
     last_command: int | None = None
     temperature_history_limit: int = 96
@@ -103,6 +104,11 @@ class AirTouchState:
                 "temperature_raw": decoded.get("temperature_raw"),
                 "last_temperature_write": decoded,
             })
+            self.console["last_heartbeat"] = decoded
+            self.console["touchpad_temperature"] = decoded.get("temperature")
+        elif kind == "touchpad_temperature":
+            self.console["last_heartbeat"] = decoded
+            self.console["touchpad_temperature"] = decoded.get("temperature")
         elif kind == "sensor_info":
             for record in decoded.get("records", []):
                 self._merge_sensor_info(record)
@@ -133,6 +139,8 @@ class AirTouchState:
             self.system["clear_notification"] = decoded
         elif kind == "led_response":
             self.last_led = decoded
+            self.console["last_led"] = decoded
+            self.console["led_name"] = decoded.get("led_name")
         elif kind == "main_display_new":
             self.system["main_display"] = decoded
         elif kind == "turbo_group":
@@ -153,6 +161,7 @@ class AirTouchState:
             "programs": self.programs,
             "service": self.service,
             "password": self.password,
+            "console": self.console,
             "last_led": self.last_led,
         }
 

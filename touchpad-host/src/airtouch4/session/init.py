@@ -124,19 +124,9 @@ def default_init_steps() -> list[InitStep]:
 
 
 def default_init_transactions() -> list[TransactionSpec]:
-    return [
-        TransactionSpec(
-            command=step.command,
-            payload=step.payload,
-            expected_commands=(step.command,),
-            name=step.name,
-            max_attempts=step.max_attempts,
-            timeout=step.retry_interval,
-            require_match=True,
-            block_on_failure=step.required,
-        )
-        for step in default_init_steps()
-    ]
+    from ..profiles import AT4
+
+    return AT4.init_transactions()
 
 
 @dataclass

@@ -8,8 +8,7 @@ from typing import Iterable, Protocol
 
 from ..constants import ADDR_TOUCHPAD_1
 from ..packet import AirTouchPacket
-from ..payloads import decode_mainboard_payload
-from ..session.init import default_init_transactions
+from ..profiles import AT4, ProtocolProfile, get_profile
 from ..session.queue import TransactionEvent, TransactionQueue, TransactionSpec
 from ..session.touchscreen import TouchscreenSession
 from ..state import AirTouchState
@@ -37,6 +36,7 @@ class RuntimeConfig:
     auto_address: bool = True
     force_source_address: bool = False
     init_transactions: bool = True
+    protocol: str = "auto"
 
 
 @dataclass(frozen=True)
@@ -72,14 +72,19 @@ class AirTouchRuntime:
     config: RuntimeConfig = field(default_factory=RuntimeConfig)
     session: TouchscreenSession | None = None
     transactions: TransactionQueue | None = None
+    profile: ProtocolProfile | None = None
     state: AirTouchState = field(default_factory=AirTouchState)
     rx_count: int = 0
     tx_count: int = 0
     started_monotonic: float = field(default_factory=time.monotonic)
     boot_complete: bool = False
     address_assigned: bool = False
+    detected_protocol: str | None = None
+    protocol_mismatch: bool = False
 
     def __post_init__(self) -> None:
+        if self.profile is None:
+            self.profile = get_profile(self.config.protocol)
         if self.session is None:
             self.session = TouchscreenSession(
                 src=self.config.source_address or ADDR_TOUCHPAD_1,
@@ -89,7 +94,7 @@ class AirTouchRuntime:
             )
         if self.transactions is None and self.config.active and self.config.init_transactions:
             self.transactions = TransactionQueue()
-            self.transactions.enqueue_many(default_init_transactions())
+            self.transactions.enqueue_many(self._profile.init_transactions())
 
     def enqueue(self, specs: Iterable[TransactionSpec]) -> None:
         if self.transactions is None:
@@ -164,6 +169,11 @@ class AirTouchRuntime:
         return {
             "runtime": {
                 "active": self.config.active,
+                "protocol_mode": self.config.protocol,
+                "protocol": self._profile.name,
+                "protocol_name": self._profile.display_name,
+                "detected_protocol": self.detected_protocol,
+                "protocol_mismatch": self.protocol_mismatch,
                 "boot_complete": self.boot_complete,
                 "address_assigned": self.address_assigned,
                 "src": f"0x{self._session.src:02X}",
@@ -189,8 +199,13 @@ class AirTouchRuntime:
         events: list[RuntimeEvent] = []
         for packet in self._session.feed_rx(data):
             self.rx_count += 1
-            self.state.apply_packet(packet)
-            decoded = decode_mainboard_payload(packet.command, packet.payload)
+            detected = self._profile.detect_response(packet.command, packet.payload)
+            decoded = self._profile.decode_payload(packet.command, packet.payload)
+            if detected is not None:
+                decoded = {**decoded, "detected_protocol": detected}
+                self._handle_detected_protocol(detected)
+            self.state.apply_decoded(packet.command, decoded)
+            self.state.last_command = packet.command
             events.append(RuntimeEvent("rx", packet=packet, decoded=decoded, state_changed=True))
             if self.transactions is not None:
                 events.extend(
@@ -205,7 +220,7 @@ class AirTouchRuntime:
 
     def _tx_event(self, packet: AirTouchPacket, wire: bytes) -> RuntimeEvent:
         self._write(wire)
-        decoded = decode_mainboard_payload(packet.command, packet.payload)
+        decoded = self._profile.decode_payload(packet.command, packet.payload)
         self.state.apply_decoded(packet.command, decoded)
         return RuntimeEvent("tx", packet=packet, wire=wire, decoded=decoded, state_changed=True)
 
@@ -221,3 +236,19 @@ class AirTouchRuntime:
                 allow_occupied=False,
             )
         return self._session.choose_available_address(self.config.source_address)
+
+    @property
+    def _profile(self) -> ProtocolProfile:
+        return self.profile or AT4
+
+    def _handle_detected_protocol(self, detected: str) -> None:
+        self.detected_protocol = detected
+        configured = self.config.protocol.lower()
+        if detected == self._profile.name and configured in {"auto", detected}:
+            self.protocol_mismatch = False
+            return
+        if detected != self._profile.name or configured not in {"auto", detected}:
+            self.protocol_mismatch = True
+            self.boot_complete = False
+            if self.transactions is not None:
+                self.transactions = None
