@@ -259,6 +259,7 @@ class MqttStatePublisher:
                     info.wait_for_publish(timeout=2.0)
                 except TypeError:
                     info.wait_for_publish()
+                self._error = None
                 return True
             self._failed_publish_count += 1
             self._error = f"MQTT publish failed rc={getattr(info, 'rc', 'unknown')}"
@@ -291,6 +292,7 @@ class MqttStatePublisher:
         try:
             with urlopen(request, timeout=3.0) as response:
                 response.read()
+            self._error = None
             return True
         except (HTTPError, URLError, TimeoutError) as exc:
             self._failed_publish_count += 1

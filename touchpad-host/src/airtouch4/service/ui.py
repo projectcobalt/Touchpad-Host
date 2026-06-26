@@ -676,7 +676,7 @@ INDEX_HTML = """<!doctype html>
     }
     .temp-line {
       width: 100%;
-      height: 34px;
+      height: 46px;
       display: block;
       overflow: visible;
     }
@@ -721,6 +721,11 @@ INDEX_HTML = """<!doctype html>
       stroke-linejoin: round;
       stroke-dasharray: 2 4;
       opacity: .66;
+    }
+    .temp-line .now-line {
+      stroke: color-mix(in srgb, var(--ink) 42%, transparent);
+      stroke-width: 1;
+      stroke-dasharray: 2 3;
     }
     .history-meta {
       display: flex;
@@ -1623,47 +1628,84 @@ INDEX_HTML = """<!doctype html>
       </div>`;
     }
 
-    function adaptiveSparkline(points = []) {
-      const entries = (Array.isArray(points) ? points : [])
-        .map((point) => {
-          if (typeof point === "number") return {actual: point, predicted: null};
-          if (!point || typeof point !== "object") return {actual: null, predicted: null};
+    function adaptiveSparkline(history = [], forecast = []) {
+      const historyEntries = (Array.isArray(history) ? history : [])
+        .map((point, index) => {
+          if (typeof point === "number") return {x: null, actual: point, forecast: null, context: null};
+          if (!point || typeof point !== "object") return null;
           return {
+            x: finiteNumber(point.ts) ?? index,
             actual: finiteNumber(point.temperature ?? point.room_temperature ?? point.actual ?? point.value),
-            predicted: finiteNumber(point.prediction ?? point.predicted_temperature ?? point.predicted),
+            forecast: finiteNumber(point.prediction ?? point.predicted_temperature ?? point.predicted),
             context: finiteNumber(point.outdoor_temperature),
           };
         })
-        .filter((point) => point.actual !== null || point.predicted !== null || point.context !== null)
+        .filter((point) => point && (point.actual !== null || point.forecast !== null || point.context !== null))
         .slice(-36);
-      const values = entries.flatMap((point) => [point.actual, point.predicted, point.context]).filter((value) => value !== null);
+      const lastHistoryX = historyEntries.length ? historyEntries[historyEntries.length - 1].x : 0;
+      const firstHistoryX = historyEntries.length ? historyEntries[0].x : lastHistoryX - 3600;
+      const historySpan = Math.max(300, lastHistoryX - firstHistoryX);
+      const forecastEntries = (Array.isArray(forecast) ? forecast : [])
+        .map((point, index) => {
+          if (typeof point === "number") return {x: lastHistoryX + ((index + 1) * 300), actual: null, forecast: point, context: null};
+          if (!point || typeof point !== "object") return null;
+          const offset = finiteNumber(point.offset_minutes);
+          return {
+            x: lastHistoryX + ((offset === null ? (index + 1) * 5 : offset) * 60),
+            actual: null,
+            forecast: finiteNumber(point.temperature ?? point.prediction ?? point.predicted_temperature ?? point.predicted),
+            context: finiteNumber(point.outdoor_temperature),
+          };
+        })
+        .filter((point) => point && (point.forecast !== null || point.context !== null))
+        .slice(0, 96);
+      const fallbackForecast = !forecastEntries.length
+        ? historyEntries
+            .filter((point) => point.forecast !== null)
+            .map((point) => ({...point, actual: null}))
+        : [];
+      const futureEntries = forecastEntries.length ? forecastEntries : fallbackForecast;
+      const values = historyEntries
+        .concat(futureEntries)
+        .flatMap((point) => [point.actual, point.forecast, point.context])
+        .filter((value) => value !== null);
+      const latestActual = historyEntries.map((point) => point.actual).filter((value) => value !== null).slice(-1)[0];
+      const latestForecast = futureEntries.map((point) => point.forecast).filter((value) => value !== null).slice(-1)[0];
       if (values.length < 2) {
-        return `<div class="analytics-sparkline"><svg class="temp-line" viewBox="0 0 120 34" preserveAspectRatio="none" aria-hidden="true"><line class="axis" x1="0" y1="20" x2="120" y2="20"></line></svg><div class="analytics-sparkline-meta"><span>Actual / Forecast / Outdoor</span><span>${entries.length} Points</span></div></div>`;
+        return `<div class="analytics-sparkline"><svg class="temp-line" viewBox="0 0 160 44" preserveAspectRatio="none" aria-hidden="true"><line class="axis" x1="0" y1="28" x2="160" y2="28"></line><line class="now-line" x1="62" y1="4" x2="62" y2="40"></line></svg><div class="analytics-sparkline-meta"><span>History / Now / Forecast</span><span>${historyEntries.length} Points</span></div></div>`;
       }
       const min = Math.min(...values);
       const max = Math.max(...values);
       const spread = Math.max(1, max - min);
-      const pathFor = (key) => entries
-        .map((point, index) => {
+      const nowX = 62;
+      const forecastSpan = Math.max(300, (futureEntries.slice(-1)[0]?.x ?? lastHistoryX + 3600) - lastHistoryX);
+      const xFor = (point) => point.x <= lastHistoryX
+        ? nowX - (((lastHistoryX - point.x) / historySpan) * nowX)
+        : nowX + (((point.x - lastHistoryX) / forecastSpan) * (160 - nowX));
+      const yFor = (value) => 38 - ((value - min) / spread) * 31;
+      const pathFor = (entries, key) => entries
+        .map((point) => {
           const value = point[key];
           if (value === null) return null;
-          const x = entries.length === 1 ? 0 : (index / (entries.length - 1)) * 120;
-          const y = 29 - ((value - min) / spread) * 24;
-          return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+          const x = xFor(point);
+          const y = yFor(value);
+          return `${x.toFixed(1)} ${y.toFixed(1)}`;
         })
         .filter(Boolean)
+        .map((xy, index) => `${index === 0 ? "M" : "L"} ${xy}`)
         .join(" ");
-      const actualLine = pathFor("actual");
-      const predictionLine = pathFor("predicted");
-      const contextLine = pathFor("context");
-      const actualValues = entries.map((point) => point.actual).filter((value) => value !== null);
-      const latestActual = actualValues.length ? temp(actualValues[actualValues.length - 1]) : "-";
-      return `<div class="analytics-sparkline"><svg class="temp-line" viewBox="0 0 120 34" preserveAspectRatio="none" aria-hidden="true">
-        <line class="axis" x1="0" y1="20" x2="120" y2="20"></line>
+      const contextEntries = historyEntries.concat(futureEntries);
+      const actualLine = pathFor(historyEntries, "actual");
+      const forecastLine = pathFor(futureEntries, "forecast");
+      const contextLine = pathFor(contextEntries, "context");
+      const label = `${latestActual === undefined ? "-" : temp(latestActual)} -> ${latestForecast === undefined ? "-" : temp(latestForecast)}`;
+      return `<div class="analytics-sparkline"><svg class="temp-line" viewBox="0 0 160 44" preserveAspectRatio="none" aria-hidden="true">
+        <line class="axis" x1="0" y1="28" x2="160" y2="28"></line>
+        <line class="now-line" x1="${nowX}" y1="4" x2="${nowX}" y2="40"></line>
         ${contextLine ? `<path class="context-line" d="${contextLine}"></path>` : ""}
-        ${predictionLine ? `<path class="prediction-line" d="${predictionLine}"></path>` : ""}
         ${actualLine ? `<path d="${actualLine}"></path>` : ""}
-      </svg><div class="analytics-sparkline-meta"><span>Actual / Forecast / Outdoor</span><span>${entries.length} Points / ${escapeHtml(latestActual)}</span></div></div>`;
+        ${forecastLine ? `<path class="prediction-line" d="${forecastLine}"></path>` : ""}
+      </svg><div class="analytics-sparkline-meta"><span>History / Now / Forecast</span><span>${escapeHtml(label)}</span></div></div>`;
     }
 
     function modelValue(value, digits = 2, suffix = "") {
@@ -1802,7 +1844,7 @@ INDEX_HTML = """<!doctype html>
       if (indoorError) alerts.push(`Indoor climate: ${describeControllerError(indoorError)}`);
       const mqtt = integrations && integrations.mqtt;
       if (mqtt && mqtt.enabled && mqtt.error) alerts.push(`MQTT: ${describeControllerError(mqtt.error)}`);
-      if (mqtt && mqtt.enabled && Number(mqtt.failed_publish_count) > 0) {
+      if (mqtt && mqtt.enabled && mqtt.error && Number(mqtt.failed_publish_count) > 0) {
         alerts.push(`MQTT publish failures: ${mqtt.failed_publish_count}`);
       }
       const errorResolver = integrations && integrations.error_resolver;
@@ -2036,6 +2078,7 @@ INDEX_HTML = """<!doctype html>
       const analyticsContainer = $("adaptive-analytics-cards");
       if (analyticsContainer) {
         const analyticsHistory = learning.analytics || {};
+        const analyticsForecasts = learning.forecasts || {};
         const entries = configuredGroupEntries(latestState || {});
         analyticsContainer.innerHTML = entries.map(([id, group]) => {
           const zone = Number(id);
@@ -2043,6 +2086,7 @@ INDEX_HTML = """<!doctype html>
           const progress = Number(learningZone.learning_progress);
           const plan = plans[String(zone)] || null;
           const history = analyticsHistory[String(zone)] || analyticsHistory[zone] || [];
+          const forecast = analyticsForecasts[String(zone)] || analyticsForecasts[zone] || [];
           if (!zoneHasAdaptiveTemperature(group, history, learningZone)) return "";
           const badges = [
             learningZone.learn === true ? '<span class="pill cool">Learning</span>' : '<span class="pill">Monitor</span>',
@@ -2066,7 +2110,7 @@ INDEX_HTML = """<!doctype html>
               <div class="analytics-row-metrics">${escapeHtml(state)}</div>
               <div class="tile-foot">${badges}</div>
             </div>
-            <div class="analytics-row-chart">${adaptiveSparkline(history)}</div>
+            <div class="analytics-row-chart">${adaptiveSparkline(history, forecast)}</div>
             <div class="analytics-model-badges">${adaptiveModelBadges(learningZone)}</div>
             <div class="analytics-row-actions">
               <button type="button" class="secondary" data-adaptive-model-action="accelerate_zone" data-zone="${escapeHtml(zone)}" data-enabled="${learningZone.accelerated_learning === true ? "false" : "true"}">${learningZone.accelerated_learning === true ? "Normal" : "Fast"}</button>

@@ -657,6 +657,7 @@ class AdaptiveMpcEngine:
         self.zone_models: dict[int, ZoneThermalModel] = {}
         self.compressor = CompressorTracker()
         self.history: dict[int, deque[dict[str, Any]]] = {}
+        self.forecasts: dict[int, list[dict[str, Any]]] = {}
         self.last_plans: dict[int, MpcProposal] = {}
         self.learning_paused_reason: str | None = None
 
@@ -744,6 +745,8 @@ class AdaptiveMpcEngine:
                 continue
             controlled.append((room, model, room.temperature))
         if not controlled:
+            for room in rooms:
+                self.forecasts.pop(room.id, None)
             return None
 
         confidences = [model.confidence for _room, model, _temp in controlled]
@@ -756,7 +759,8 @@ class AdaptiveMpcEngine:
         predictions: list[list[float]] = []
         actions: list[str] = []
         fractions: list[float] = []
-        for _room, model, temperature in controlled:
+        self.forecasts = {room.id: [] for room, _model, _temperature in controlled}
+        for room, model, temperature in controlled:
             plan = _optimize_plan(
                 model.ekf.model,
                 temperature,
@@ -771,6 +775,7 @@ class AdaptiveMpcEngine:
             predictions.append(plan.temperatures[1:])
             actions.append(plan.current_action)
             fractions.append(plan.current_power_fraction)
+            self.forecasts[room.id] = _forecast_points(plan, outdoor)
         if not all(model.mpc_ready_for(cooling=cooling) for _room, model, _temp in controlled):
             return MpcProposal(
                 target=baseline_target,
@@ -807,11 +812,13 @@ class AdaptiveMpcEngine:
     def reset_zone(self, group_id: int) -> None:
         self.zone_models.pop(group_id, None)
         self.history.pop(group_id, None)
+        self.forecasts.pop(group_id, None)
         self.last_plans.clear()
 
     def reset_all(self) -> None:
         self.zone_models.clear()
         self.history.clear()
+        self.forecasts.clear()
         self.last_plans.clear()
 
     def set_accelerated_learning(self, group_id: int, enabled: bool) -> None:
@@ -881,6 +888,11 @@ class AdaptiveMpcEngine:
             "analytics": {
                 str(group_id): [_analytics_point(point) for point in list(points)[-24:]]
                 for group_id, points in sorted(self.history.items())
+            },
+            "forecasts": {
+                str(group_id): points
+                for group_id, points in sorted(self.forecasts.items())
+                if points
             },
             "plans": {
                 str(ac_id): {
@@ -982,6 +994,22 @@ def _analytics_point(point: dict[str, Any]) -> dict[str, Any]:
     if predicted is not None:
         result["predicted_temperature"] = predicted
     return result
+
+
+def _forecast_points(plan: MpcPlan, outdoor: list[float]) -> list[dict[str, Any]]:
+    points = []
+    for index, temperature in enumerate(plan.temperatures[1:]):
+        outdoor_temperature = outdoor[index] if index < len(outdoor) else None
+        point: dict[str, Any] = {
+            "offset_minutes": int(round((index + 1) * PLAN_DT_MINUTES)),
+            "temperature": round(temperature, 2),
+            "action": plan.actions[index] if index < len(plan.actions) else MODE_IDLE,
+            "power_fraction": round(plan.power_fractions[index], 3) if index < len(plan.power_fractions) else 0.0,
+        }
+        if outdoor_temperature is not None:
+            point["outdoor_temperature"] = round(outdoor_temperature, 2)
+        points.append(point)
+    return points
 
 
 def _optimize_plan(
