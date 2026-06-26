@@ -14,6 +14,7 @@ class AdaptiveRoom:
     setpoint: float | None
     active: bool
     learn: bool
+    configured_control: bool
     control_enabled: bool
     power_fraction: float = 0.0
 

@@ -32,6 +32,9 @@ class MpcProposal:
     reason: str
     action: str = MODE_IDLE
     power_fraction: float = 0.0
+    zone_power_fractions: dict[int, float] = field(default_factory=dict)
+    projected_runtime_hours: float = 0.0
+    zone_projected_runtime_hours: dict[int, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -735,10 +738,12 @@ class AdaptiveMpcEngine:
         outside_forecast: list[float] | tuple[float, ...] = (),
         humidity: float | None = None,
         q_solar: float = 0.0,
+        advisory: bool = False,
     ) -> MpcProposal | None:
         controlled: list[tuple[AdaptiveRoom, ZoneThermalModel, float]] = []
         for room in rooms:
-            if not room.active or not room.control_enabled:
+            control_allowed = room.configured_control if advisory else room.control_enabled
+            if not room.active or not control_allowed:
                 continue
             model = self.zone_models.get(room.id)
             if room.temperature is None or model is None:
@@ -759,6 +764,9 @@ class AdaptiveMpcEngine:
         predictions: list[list[float]] = []
         actions: list[str] = []
         fractions: list[float] = []
+        zone_fractions: dict[int, float] = {}
+        runtime_blocks: set[int] = set()
+        zone_runtime_hours: dict[int, float] = {}
         self.forecasts = {room.id: [] for room, _model, _temperature in controlled}
         for room, model, temperature in controlled:
             plan = _optimize_plan(
@@ -775,7 +783,12 @@ class AdaptiveMpcEngine:
             predictions.append(plan.temperatures[1:])
             actions.append(plan.current_action)
             fractions.append(plan.current_power_fraction)
+            zone_fractions[room.id] = round(plan.current_power_fraction, 3)
+            active_blocks = {index for index, action in enumerate(plan.actions) if action != MODE_IDLE}
+            runtime_blocks.update(active_blocks)
+            zone_runtime_hours[room.id] = round(len(active_blocks) * PLAN_DT_MINUTES / 60.0, 2)
             self.forecasts[room.id] = _forecast_points(plan, outdoor)
+        projected_runtime_hours = round(len(runtime_blocks) * PLAN_DT_MINUTES / 60.0, 2)
         if not all(model.mpc_ready_for(cooling=cooling) for _room, model, _temp in controlled):
             return MpcProposal(
                 target=baseline_target,
@@ -783,6 +796,9 @@ class AdaptiveMpcEngine:
                 confidence=confidence,
                 predicted_temperatures=[],
                 reason="warming_up",
+                zone_power_fractions=zone_fractions,
+                projected_runtime_hours=projected_runtime_hours,
+                zone_projected_runtime_hours=zone_runtime_hours,
             )
         worst_by_block: list[float] = []
         for block in range(blocks):
@@ -805,6 +821,9 @@ class AdaptiveMpcEngine:
             reason="ekf_mpc_plan",
             action=_dominant_action(actions),
             power_fraction=round(max(fractions) if fractions else 0.0, 3),
+            zone_power_fractions=zone_fractions,
+            projected_runtime_hours=projected_runtime_hours,
+            zone_projected_runtime_hours=zone_runtime_hours,
         )
         self.last_plans[ac_id] = proposal
         return proposal
@@ -850,8 +869,8 @@ class AdaptiveMpcEngine:
                     "skipped_observations": model.skipped_observations,
                     "last_skip_reason": model.last_skip_reason,
                     "last_boost_ts": model.last_boost_ts,
-                    "passive_hours": round(model.passive_samples / 60.0, 2),
-                    "active_hours": round(model.active_samples / 60.0, 2),
+                    "passive_hours": round(model.passive_samples * LEARNING_OBSERVATION_INTERVAL_SECONDS / 3600.0, 2),
+                    "active_hours": round(model.active_samples * LEARNING_OBSERVATION_INTERVAL_SECONDS / 3600.0, 2),
                     "confidence": model.confidence,
                     "mpc_ready": model.mpc_ready,
                     "passive_samples": model.passive_samples,
@@ -901,6 +920,11 @@ class AdaptiveMpcEngine:
                     "confidence": plan.confidence,
                     "action": plan.action,
                     "power_fraction": plan.power_fraction,
+                    "projected_runtime_hours": plan.projected_runtime_hours,
+                    "zone_projected_runtime_hours": {
+                        str(group_id): hours
+                        for group_id, hours in plan.zone_projected_runtime_hours.items()
+                    },
                     "predicted_temperatures": plan.predicted_temperatures,
                     "reason": plan.reason,
                 }

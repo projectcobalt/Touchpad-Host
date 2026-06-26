@@ -7,14 +7,19 @@ from typing import Any
 from .adaptive_model import AdaptiveDevice, AdaptiveRoom, AdaptiveSnapshot
 
 
-def translate_airtouch_snapshot(state: dict[str, Any], *, control_zones: tuple[int, ...] = ()) -> AdaptiveSnapshot:
+def translate_airtouch_snapshot(
+    state: dict[str, Any],
+    *,
+    control_zones: tuple[int, ...] = (),
+    control_active: bool = True,
+) -> AdaptiveSnapshot:
     devices: list[AdaptiveDevice] = []
     control_zone_set = set(control_zones)
     for ac_id, ac in _iter_acs(state):
         status = ac.get("status") or {}
         settings = ac.get("settings") or {}
         rooms = tuple(
-            _room_from_group(group_id, group, ac_id=ac_id, control_zone_set=control_zone_set)
+            _room_from_group(group_id, group, ac_id=ac_id, control_zone_set=control_zone_set, control_active=control_active)
             for group_id, group in _groups_for_ac(state, ac_id, ac)
         )
         rooms = _with_power_fractions(rooms)
@@ -39,9 +44,11 @@ def _room_from_group(
     *,
     ac_id: int,
     control_zone_set: set[int],
+    control_active: bool,
 ) -> AdaptiveRoom:
     status = group.get("status") or {}
     temperature = _number(status.get("temperature"))
+    configured_control = group_id in control_zone_set
     return AdaptiveRoom(
         id=group_id,
         name=str(group.get("name") or f"Zone {group_id + 1}"),
@@ -50,7 +57,8 @@ def _room_from_group(
         setpoint=_number(status.get("setpoint")),
         active=status.get("power_name") in {"on", "turbo"},
         learn=_room_learning_enabled(status, temperature),
-        control_enabled=group_id in control_zone_set,
+        configured_control=configured_control,
+        control_enabled=configured_control and control_active,
         power_fraction=_group_weight(status) or 0.0,
     )
 
@@ -91,6 +99,7 @@ def _replace_room_fraction(room: AdaptiveRoom, power_fraction: float) -> Adaptiv
         setpoint=room.setpoint,
         active=room.active,
         learn=room.learn,
+        configured_control=room.configured_control,
         control_enabled=room.control_enabled,
         power_fraction=round(power_fraction, 4),
     )
@@ -104,7 +113,9 @@ def _group_weight(status: dict[str, Any]) -> float | None:
     for key in ("percentage", "damper_percentage", "open_percentage", "opening", "damper", "percent"):
         value = _number(status.get(key))
         if value is not None:
-            return max(0.0, value)
+            if value > 1.0:
+                value /= 100.0
+            return min(1.0, max(0.0, value))
     return None
 
 

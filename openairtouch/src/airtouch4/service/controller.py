@@ -313,9 +313,10 @@ class RuntimeController:
         if weather_entity:
             try:
                 weather = self._ha_client.weather_snapshot()
+                weather_error = _weather_data_quality_error(weather, weather_entity)
                 with self._lock:
                     self._weather = weather
-                    self._weather_error = None
+                    self._weather_error = weather_error
             except Exception as exc:  # pragma: no cover - live HA API path
                 with self._lock:
                     self._weather_error = f"{type(exc).__name__}: {exc}"
@@ -451,6 +452,21 @@ def _event_record(event: RuntimeEvent) -> dict[str, Any]:
     if event.transaction is not None:
         record["transaction"] = event.transaction.to_record()
     return record
+
+
+def _weather_data_quality_error(weather: dict[str, Any] | None, entity_id: str) -> str | None:
+    if not weather:
+        return None
+    if _float_or_none(weather.get("temperature")) is None:
+        return f"{entity_id} has no numeric temperature"
+    return None
+
+
+def _float_or_none(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _add_error_displays(runtime_snapshot: dict[str, Any], resolver: RemoteErrorResolver) -> None:

@@ -16,6 +16,7 @@ from .adaptive_model import AdaptiveDevice
 
 ADAPTIVE_MODES = ("off", "recommend", "auto_off", "adaptive")
 ADAPTIVE_LEARNING_MODES = ("off", "control")
+ADAPTIVE_CONTROL_STRATEGIES = ("weather_setpoint", "mpc_setpoint", "hybrid_damper_mpc")
 _LEGACY_LEARNING_MODES = ("learn",)
 
 
@@ -34,6 +35,10 @@ class AdaptiveConfig:
     compressor_min_off_time: float = 0.0
     compressor_groups: tuple[tuple[int, ...], ...] = ()
     control_zones: tuple[int, ...] = ()
+    control_strategy: str = "weather_setpoint"
+    hybrid_min_damper_percent: int = 10
+    hybrid_max_damper_percent: int = 100
+    hybrid_idle_damper_percent: int = 10
 
 
 @dataclass(frozen=True)
@@ -68,6 +73,7 @@ class AdaptiveController:
         self._last_command: dict[str, tuple[int | bool, float]] = {}
         self._adapted_ac: dict[int, dict[str, int]] = {}
         self._adapted_group: dict[int, dict[str, int]] = {}
+        self._adapted_damper: dict[int, dict[str, int]] = {}
         self._mpc = AdaptiveMpcEngine()
         self._compressor_groups = self.config.compressor_groups
         self._mpc.compressor.configure(self._compressor_groups)
@@ -81,6 +87,8 @@ class AdaptiveController:
         for key in data:
             if key in values and values[key] is not None:
                 data[key] = values[key]
+        if "control_strategy" in values and "learning_mode" not in values:
+            data["learning_mode"] = "control" if _strategy_uses_mpc(str(data["control_strategy"]).lower()) else "off"
         self.config = _validated_config(AdaptiveConfig(**data))
         self._set_compressor_groups(self.config.compressor_groups)
         self._next_check = 0.0
@@ -103,6 +111,10 @@ class AdaptiveController:
             "compressor_min_off_time": self.config.compressor_min_off_time,
             "compressor_groups": [list(group) for group in self.config.compressor_groups],
             "control_zones": list(self.config.control_zones),
+            "control_strategy": self.config.control_strategy,
+            "hybrid_min_damper_percent": self.config.hybrid_min_damper_percent,
+            "hybrid_max_damper_percent": self.config.hybrid_max_damper_percent,
+            "hybrid_idle_damper_percent": self.config.hybrid_idle_damper_percent,
         }
 
     def export_learning(self) -> dict[str, Any]:
@@ -146,7 +158,12 @@ class AdaptiveController:
         solar_signal = _solar_signal(weather, integrations)
         state = runtime_snapshot.get("state") or {}
         self._set_compressor_groups(_compressor_groups_from_zone_map(state) or self.config.compressor_groups)
-        adaptive_snapshot = translate_airtouch_snapshot(state, control_zones=self.config.control_zones)
+        mode = self.config.mode
+        adaptive_snapshot = translate_airtouch_snapshot(
+            state,
+            control_zones=self.config.control_zones,
+            control_active=mode == "adaptive",
+        )
         self._mpc.observe(
             adaptive_snapshot,
             now=now,
@@ -170,7 +187,6 @@ class AdaptiveController:
             specs = self._restore_all(state, status, now) if self.config.mode != "off" else []
             self._status = self._final_status(status)
             return specs
-        mode = self.config.mode
         if mode == "off":
             specs = self._restore_all(state, status, now)
             self._status = self._final_status(status)
@@ -192,10 +208,15 @@ class AdaptiveController:
                 "humidity": climate.humidity,
                 "humidity_source": climate.humidity_source,
             })
-            if mode in {"recommend", "auto_off"}:
+            if mode == "recommend":
+                self._recommend_action(device, ac, outside, weather_signal, solar_signal, climate, status)
+            elif mode == "auto_off":
                 specs.extend(self._basic_action(state, ac_id, ac, outside, weather_signal, climate, status, now, planned_power_off))
             elif mode == "adaptive":
-                specs.extend(self._adaptive_action(state, device, ac, outside, weather_signal, solar_signal, climate, status, now))
+                if self.config.control_strategy == "hybrid_damper_mpc":
+                    specs.extend(self._hybrid_damper_action(state, device, ac, outside, weather_signal, solar_signal, climate, status, now))
+                else:
+                    specs.extend(self._adaptive_action(state, device, ac, outside, weather_signal, solar_signal, climate, status, now))
         self._status = self._final_status(status)
         return specs
 
@@ -205,6 +226,55 @@ class AdaptiveController:
             return
         self._compressor_groups = groups
         self._mpc.compressor.configure(groups)
+
+    def _recommend_action(
+        self,
+        device: AdaptiveDevice,
+        ac: dict[str, Any],
+        outside: float,
+        weather: WeatherSignal,
+        solar: SolarSignal,
+        climate: ClimateSignal,
+        status: dict[str, Any],
+    ) -> None:
+        ac_status = ac.get("status") or {}
+        setpoint = _number(ac_status.get("setpoint"))
+        cooling = device.mode == 4
+        target = self._adaptive_target(ac, outside, weather, climate, cooling)
+        proposal = self._mpc_proposal(device, target, cooling, outside, weather, solar, climate, advisory=True)
+        hybrid_status = None
+        if self.config.control_strategy == "hybrid_damper_mpc":
+            controlled_rooms = tuple(room for room in device.rooms if room.active and room.configured_control and room.temperature is not None)
+            hybrid_status = self._hybrid_shadow_status(controlled_rooms, target, cooling, proposal)
+        status["evaluations"][-1].update({
+            "target": target,
+            "forecast_target": self._forecast_target(self._target_setpoint(outside, cooling), weather.forecast_temperatures, cooling),
+            "mpc": _proposal_status(proposal),
+            "hybrid": hybrid_status,
+            "solar": {
+                "q_solar": solar.q_solar,
+                "source": solar.source,
+            },
+            "relaxation_allowed": _indoor_allows_relax(climate.indoor_temperature, target, cooling),
+        })
+        outside_round = round(outside)
+        name = _ac_name(device.ac_id, ac)
+        if setpoint is not None and ((cooling and setpoint > outside_round) or (not cooling and setpoint < outside_round)):
+            status["recommendations"].append(f"{name}: Outside {outside_round}° is favourable versus setpoint {setpoint}°")
+        if proposal is not None:
+            if proposal.source == "mpc":
+                status["recommendations"].append(
+                    f"{name}: MPC recommends target {proposal.target}° "
+                    f"(confidence {round(proposal.confidence * 100)}%, action {proposal.action})"
+                )
+                if hybrid_status is not None and hybrid_status["damper_percentages"]:
+                    damper_text = ", ".join(
+                        f"Zone {int(group_id) + 1} {percent}%"
+                        for group_id, percent in sorted(hybrid_status["damper_percentages"].items(), key=lambda item: int(item[0]))
+                    )
+                    status["recommendations"].append(f"{name}: Hybrid shadow dampers {damper_text}")
+            elif proposal.source == "learning":
+                status["recommendations"].append(f"{name}: MPC learning is warming up for selected control zones")
 
     def _basic_action(
         self,
@@ -275,42 +345,21 @@ class AdaptiveController:
         ac_id = device.ac_id
         ac_status = ac.get("status") or {}
         cooling = device.mode == 4
-        target = self._target_setpoint(outside, cooling)
-        forecast_target = self._forecast_target(target, weather.forecast_temperatures, cooling)
-        target = self._humidity_adjusted_target(forecast_target, climate.humidity, cooling)
-        target = _clamp_setpoint(target, ac)
+        base_target = self._target_setpoint(outside, cooling)
+        forecast_target = self._forecast_target(base_target, weather.forecast_temperatures, cooling)
+        target = self._adaptive_target(ac, outside, weather, climate, cooling)
         groups = _groups_for_ac(state, ac_id, ac)
         controlled_rooms = tuple(room for room in device.rooms if room.active and room.control_enabled and room.temperature is not None)
         controlled_group_ids = {room.id for room in controlled_rooms}
-        proposal = None
-        if self.config.learning_mode == "control":
-            proposal = self._mpc.propose(
-                ac_id=ac_id,
-                rooms=controlled_rooms,
-                baseline_target=target,
-                cooling=cooling,
-                horizon_hours=self.config.mpc_horizon_hours,
-                outside_temperature=outside,
-                outside_forecast=weather.forecast_temperatures,
-                humidity=climate.humidity,
-                q_solar=solar.q_solar,
-            )
-            if proposal is not None:
-                target = _clamp_setpoint(proposal.target, ac)
+        proposal = self._mpc_proposal(device, target, cooling, outside, weather, solar, climate)
+        if proposal is not None:
+            target = _clamp_setpoint(proposal.target, ac)
         setpoint = _number(ac_status.get("setpoint"))
         name = _ac_name(ac_id, ac)
         status["evaluations"][-1].update({
             "target": target,
             "forecast_target": forecast_target,
-            "mpc": None if proposal is None else {
-                "target": proposal.target,
-                "source": proposal.source,
-                "confidence": proposal.confidence,
-                "predicted_temperatures": proposal.predicted_temperatures,
-                "reason": proposal.reason,
-                "action": proposal.action,
-                "power_fraction": proposal.power_fraction,
-            },
+            "mpc": _proposal_status(proposal),
             "solar": {
                 "q_solar": solar.q_solar,
                 "source": solar.source,
@@ -349,6 +398,161 @@ class AdaptiveController:
                 specs.extend(self._restore_group_setpoint(state, group_id, status, now))
         return specs
 
+    def _hybrid_damper_action(
+        self,
+        state: dict[str, Any],
+        device: AdaptiveDevice,
+        ac: dict[str, Any],
+        outside: float,
+        weather: WeatherSignal,
+        solar: SolarSignal,
+        climate: ClimateSignal,
+        status: dict[str, Any],
+        now: float,
+    ) -> list[TransactionSpec]:
+        specs: list[TransactionSpec] = []
+        ac_id = device.ac_id
+        ac_status = ac.get("status") or {}
+        cooling = device.mode == 4
+        base_target = self._target_setpoint(outside, cooling)
+        forecast_target = self._forecast_target(base_target, weather.forecast_temperatures, cooling)
+        target = self._adaptive_target(ac, outside, weather, climate, cooling)
+        proposal = self._mpc_proposal(device, target, cooling, outside, weather, solar, climate)
+        if proposal is not None:
+            target = _clamp_setpoint(proposal.target, ac)
+        name = _ac_name(ac_id, ac)
+        controlled_rooms = tuple(room for room in device.rooms if room.active and room.control_enabled and room.temperature is not None)
+        controlled_group_ids = {room.id for room in controlled_rooms}
+        control_temperature = _hybrid_control_temperature(controlled_rooms, target, cooling, proposal.power_fraction if proposal else 0.0)
+        status["evaluations"][-1].update({
+            "target": target,
+            "forecast_target": forecast_target,
+            "mpc": _proposal_status(proposal),
+            "hybrid": {
+                "strategy": "hybrid_damper_mpc",
+                "control_temperature": control_temperature,
+                "control_temperature_source": "synthetic_weighted_zone_demand" if control_temperature is not None else None,
+                "damper_percentages": {},
+                "touchpad_temperature_commanded": False,
+                "touchpad_temperature_note": "planned only; runtime heartbeat mutation is not enabled",
+            },
+            "solar": {
+                "q_solar": solar.q_solar,
+                "source": solar.source,
+            },
+            "relaxation_allowed": _indoor_allows_relax(climate.indoor_temperature, target, cooling),
+        })
+        if not controlled_rooms:
+            status["recommendations"].append(f"{name}: Hybrid held, no active controlled temperature zones")
+            specs.extend(self._restore_ac(state, ac_id, status, now))
+            specs.extend(self._restore_dampers_for_ac(state, ac_id, ac, status, now))
+            return specs
+        if proposal is None:
+            status["recommendations"].append(f"{name}: Hybrid waiting for MPC proposal")
+            specs.extend(self._restore_dampers_for_ac(state, ac_id, ac, status, now))
+            return specs
+        if proposal.source != "mpc":
+            status["recommendations"].append(f"{name}: Hybrid warming models before damper control")
+            specs.extend(self._restore_dampers_for_ac(state, ac_id, ac, status, now))
+            return specs
+
+        setpoint = _number(ac_status.get("setpoint"))
+        if setpoint is not None and self._needs_relax(setpoint, target, cooling):
+            self._adapted_ac.setdefault(ac_id, {"original": int(setpoint), "target": target})
+            self._adapted_ac[ac_id]["target"] = target
+            spec = self._set_ac_setpoint(state, ac_id, target, status, now)
+            if spec is not None:
+                specs.append(spec)
+                status["actions"].append(f"{name}: Hybrid setpoint {target} deg")
+        else:
+            specs.extend(self._restore_ac_setpoint(state, ac_id, status, now))
+
+        groups = _groups_for_ac(state, ac_id, ac)
+        for group_id, group in groups:
+            if group_id not in controlled_group_ids:
+                specs.extend(self._restore_group_percentage(state, group_id, status, now))
+                continue
+            group_status = group.get("status") or {}
+            current = _number(group_status.get("percentage"))
+            if current is None:
+                continue
+            percent = _hybrid_damper_percent(
+                proposal.zone_power_fractions.get(group_id, proposal.power_fraction),
+                minimum_percent=self.config.hybrid_min_damper_percent,
+                maximum_percent=self.config.hybrid_max_damper_percent,
+                idle_percent=self.config.hybrid_idle_damper_percent,
+            )
+            status["evaluations"][-1]["hybrid"]["damper_percentages"][str(group_id)] = percent
+            if int(round(current)) == percent:
+                continue
+            self._adapted_damper.setdefault(group_id, {"original": int(round(current)), "target": percent})
+            self._adapted_damper[group_id]["target"] = percent
+            spec = self._set_group_percentage(state, group_id, percent, status, now)
+            if spec is not None:
+                specs.append(spec)
+                status["actions"].append(f"{_group_name(group_id, group)}: Damper {percent}%")
+        return specs
+
+    def _hybrid_shadow_status(
+        self,
+        controlled_rooms: tuple[Any, ...],
+        target: int,
+        cooling: bool,
+        proposal: Any,
+    ) -> dict[str, Any]:
+        power_fraction = proposal.power_fraction if proposal is not None else 0.0
+        status = {
+            "strategy": "hybrid_damper_mpc",
+            "control_temperature": _hybrid_control_temperature(controlled_rooms, target, cooling, power_fraction),
+            "control_temperature_source": "synthetic_weighted_zone_demand" if controlled_rooms else None,
+            "damper_percentages": {},
+            "touchpad_temperature_commanded": False,
+            "touchpad_temperature_note": "planned only; runtime heartbeat mutation is not enabled",
+        }
+        if proposal is None:
+            return status
+        for room in controlled_rooms:
+            status["damper_percentages"][str(room.id)] = _hybrid_damper_percent(
+                proposal.zone_power_fractions.get(room.id, proposal.power_fraction),
+                minimum_percent=self.config.hybrid_min_damper_percent,
+                maximum_percent=self.config.hybrid_max_damper_percent,
+                idle_percent=self.config.hybrid_idle_damper_percent,
+            )
+        return status
+
+    def _adaptive_target(self, ac: dict[str, Any], outside: float, weather: WeatherSignal, climate: ClimateSignal, cooling: bool) -> int:
+        target = self._target_setpoint(outside, cooling)
+        target = self._forecast_target(target, weather.forecast_temperatures, cooling)
+        target = self._humidity_adjusted_target(target, climate.humidity, cooling)
+        return _clamp_setpoint(target, ac)
+
+    def _mpc_proposal(
+        self,
+        device: AdaptiveDevice,
+        baseline_target: int,
+        cooling: bool,
+        outside: float,
+        weather: WeatherSignal,
+        solar: SolarSignal,
+        climate: ClimateSignal,
+        *,
+        advisory: bool = False,
+    ):
+        if not _strategy_uses_mpc(self.config.control_strategy):
+            return None
+        return self._mpc.propose(
+            ac_id=device.ac_id,
+            rooms=device.rooms,
+            baseline_target=baseline_target,
+            cooling=cooling,
+            horizon_hours=self.config.mpc_horizon_hours,
+            outside_temperature=outside,
+            outside_forecast=weather.forecast_temperatures,
+            humidity=climate.humidity,
+            q_solar=solar.q_solar,
+            advisory=advisory,
+        )
+
     def _target_setpoint(self, outside: float, cooling: bool) -> int:
         outside_round = round(outside)
         if cooling:
@@ -382,6 +586,8 @@ class AdaptiveController:
             specs.extend(self._restore_ac_setpoint(state, ac_id, status, now))
         for group_id in list(self._adapted_group):
             specs.extend(self._restore_group_setpoint(state, group_id, status, now))
+        for group_id in list(self._adapted_damper):
+            specs.extend(self._restore_group_percentage(state, group_id, status, now))
         return specs
 
     def _restore_ac(self, state: dict[str, Any], ac_id: int, status: dict[str, Any], now: float) -> list[TransactionSpec]:
@@ -389,6 +595,7 @@ class AdaptiveController:
         ac = _indexed(state.get("acs") or {}, ac_id) or {}
         for group_id, _group in _groups_for_ac(state, ac_id, ac):
             specs.extend(self._restore_group_setpoint(state, group_id, status, now))
+            specs.extend(self._restore_group_percentage(state, group_id, status, now))
         return specs
 
     def _restore_ac_setpoint(self, state: dict[str, Any], ac_id: int, status: dict[str, Any], now: float) -> list[TransactionSpec]:
@@ -423,6 +630,28 @@ class AdaptiveController:
         status["actions"].append(f"{_group_name(group_id, group)}: Restore {record['original']}°")
         return [spec]
 
+    def _restore_dampers_for_ac(self, state: dict[str, Any], ac_id: int, ac: dict[str, Any], status: dict[str, Any], now: float) -> list[TransactionSpec]:
+        specs: list[TransactionSpec] = []
+        for group_id, _group in _groups_for_ac(state, ac_id, ac):
+            specs.extend(self._restore_group_percentage(state, group_id, status, now))
+        return specs
+
+    def _restore_group_percentage(self, state: dict[str, Any], group_id: int, status: dict[str, Any], now: float) -> list[TransactionSpec]:
+        record = self._adapted_damper.get(group_id)
+        group = _group_for_id(state, group_id)
+        current = _number((group.get("status") or {}).get("percentage")) if isinstance(group, dict) else None
+        if record is None:
+            return []
+        if current is not None and int(round(current)) != record["target"]:
+            self._adapted_damper.pop(group_id, None)
+            return []
+        spec = self._set_group_percentage(state, group_id, record["original"], status, now)
+        if spec is None:
+            return []
+        self._adapted_damper.pop(group_id, None)
+        status["actions"].append(f"{_group_name(group_id, group)}: Restore damper {record['original']}%")
+        return [spec]
+
     def _set_ac_setpoint(self, state: dict[str, Any], ac_id: int, setpoint: int, status: dict[str, Any], now: float) -> TransactionSpec | None:
         key = f"ac:{ac_id}:setpoint"
         if not self._should_send(key, setpoint, now):
@@ -439,6 +668,16 @@ class AdaptiveController:
             return None
         try:
             return build_transaction("group_setpoint", {"group": group_id, "setpoint": setpoint}, state=state)
+        except CommandRequestError as exc:
+            status["errors"].append(str(exc))
+            return None
+
+    def _set_group_percentage(self, state: dict[str, Any], group_id: int, percentage: int, status: dict[str, Any], now: float) -> TransactionSpec | None:
+        key = f"group:{group_id}:percentage"
+        if not self._should_send(key, percentage, now):
+            return None
+        try:
+            return build_transaction("group_percentage", {"group": group_id, "percentage": percentage}, state=state)
         except CommandRequestError as exc:
             status["errors"].append(str(exc))
             return None
@@ -464,11 +703,13 @@ class AdaptiveController:
             "learning": self._mpc.status(time.monotonic()),
             "active_ac": sorted(self._adapted_ac),
             "active_groups": sorted(self._adapted_group),
+            "active_dampers": sorted(self._adapted_damper),
         }
 
     def _final_status(self, status: dict[str, Any]) -> dict[str, Any]:
         status["active_ac"] = sorted(self._adapted_ac)
         status["active_groups"] = sorted(self._adapted_group)
+        status["active_dampers"] = sorted(self._adapted_damper)
         status["learning"] = self._mpc.status(time.monotonic())
         return status
 
@@ -482,10 +723,23 @@ def _validated_config(config: AdaptiveConfig) -> AdaptiveConfig:
         learning_mode = "off"
     if learning_mode not in ADAPTIVE_LEARNING_MODES:
         raise ValueError(f"adaptive learning mode must be one of {', '.join(ADAPTIVE_LEARNING_MODES)}")
+    control_strategy = str(config.control_strategy or "weather_setpoint").lower()
+    if control_strategy == "setpoint":
+        control_strategy = "mpc_setpoint" if learning_mode == "control" else "weather_setpoint"
+    elif control_strategy == "weather_setpoint" and learning_mode == "control":
+        control_strategy = "mpc_setpoint"
+    if control_strategy not in ADAPTIVE_CONTROL_STRATEGIES:
+        raise ValueError(f"adaptive control strategy must be one of {', '.join(ADAPTIVE_CONTROL_STRATEGIES)}")
+    learning_mode = "control" if _strategy_uses_mpc(control_strategy) else "off"
+    min_damper = _int_range("hybrid_min_damper_percent", config.hybrid_min_damper_percent, 0, 100)
+    max_damper = _int_range("hybrid_max_damper_percent", config.hybrid_max_damper_percent, 0, 100)
+    if min_damper > max_damper:
+        raise ValueError("hybrid_min_damper_percent must be less than or equal to hybrid_max_damper_percent")
     return replace(
         config,
         mode=mode,
         learning_mode=learning_mode,
+        control_strategy=control_strategy,
         cool_diff=_int_range("cool_diff", config.cool_diff, 0, 15),
         cool_comfort_temp=_int_range("cool_comfort_temp", config.cool_comfort_temp, 16, 32),
         heat_diff=_int_range("heat_diff", config.heat_diff, 0, 15),
@@ -497,6 +751,9 @@ def _validated_config(config: AdaptiveConfig) -> AdaptiveConfig:
         compressor_min_off_time=max(0.0, float(config.compressor_min_off_time)),
         compressor_groups=_validated_compressor_groups(config.compressor_groups),
         control_zones=_validated_control_zones(config.control_zones),
+        hybrid_min_damper_percent=min_damper,
+        hybrid_max_damper_percent=max_damper,
+        hybrid_idle_damper_percent=_int_range("hybrid_idle_damper_percent", config.hybrid_idle_damper_percent, 0, 100),
     )
 
 
@@ -508,6 +765,10 @@ def _int_range(name: str, value: Any, minimum: int, maximum: int) -> int:
     if not minimum <= number <= maximum:
         raise ValueError(f"{name} must be between {minimum} and {maximum}")
     return number
+
+
+def _strategy_uses_mpc(control_strategy: str) -> bool:
+    return control_strategy in {"mpc_setpoint", "hybrid_damper_mpc"}
 
 
 def _weather_signal(weather: dict[str, Any], integrations: dict[str, Any]) -> WeatherSignal:
@@ -716,6 +977,64 @@ def _clamp_setpoint(target: int, ac: dict[str, Any]) -> int:
     return target
 
 
+def _proposal_status(proposal: Any) -> dict[str, Any] | None:
+    if proposal is None:
+        return None
+    return {
+        "target": proposal.target,
+        "source": proposal.source,
+        "confidence": proposal.confidence,
+        "predicted_temperatures": proposal.predicted_temperatures,
+        "reason": proposal.reason,
+        "action": proposal.action,
+        "power_fraction": proposal.power_fraction,
+        "zone_power_fractions": {str(group_id): fraction for group_id, fraction in getattr(proposal, "zone_power_fractions", {}).items()},
+        "projected_runtime_hours": getattr(proposal, "projected_runtime_hours", 0.0),
+        "zone_projected_runtime_hours": {
+            str(group_id): hours
+            for group_id, hours in getattr(proposal, "zone_projected_runtime_hours", {}).items()
+        },
+    }
+
+
+def _hybrid_damper_percent(power_fraction: float, *, minimum_percent: int, maximum_percent: int, idle_percent: int) -> int:
+    fraction = _number(power_fraction)
+    if fraction is None or fraction <= 0.0:
+        return _clamp_int(idle_percent, 0, 100)
+    minimum = _percent_to_fraction(minimum_percent)
+    maximum = _percent_to_fraction(maximum_percent)
+    damper = minimum + (maximum - minimum) * min(1.0, fraction)
+    return _fraction_to_percent(damper)
+
+
+def _hybrid_control_temperature(rooms: tuple[Any, ...], target: int, cooling: bool, power_fraction: float) -> float | None:
+    temperatures = [(room.temperature, max(0.05, room.power_fraction)) for room in rooms if room.temperature is not None]
+    if not temperatures:
+        return None
+    total_weight = sum(weight for _temperature, weight in temperatures)
+    average = sum(temperature * weight for temperature, weight in temperatures) / total_weight
+    demand = min(1.0, max(0.0, float(power_fraction or 0.0)))
+    offset = demand * 2.0
+    synthetic = max(average, target + offset) if cooling else min(average, target - offset)
+    return round(synthetic, 1)
+
+
+def _clamp_int(value: Any, minimum: int, maximum: int) -> int:
+    try:
+        number = int(round(float(value)))
+    except (TypeError, ValueError):
+        number = minimum
+    return min(max(number, minimum), maximum)
+
+
+def _fraction_to_percent(value: float) -> int:
+    return _clamp_int(round(float(value) * 100.0), 0, 100)
+
+
+def _percent_to_fraction(value: int) -> float:
+    return _clamp_int(value, 0, 100) / 100.0
+
+
 def _iter_acs(state: dict[str, Any]) -> list[tuple[int, dict[str, Any]]]:
     result = []
     for key, value in (state.get("acs") or {}).items():
@@ -745,6 +1064,14 @@ def _groups_for_ac(state: dict[str, Any], ac_id: int, ac: dict[str, Any]) -> lis
             continue
         result.append((group_id, value))
     return sorted(result)
+
+
+def _group_for_id(state: dict[str, Any], group_id: int) -> dict[str, Any]:
+    group = _indexed(state.get("active_groups") or {}, group_id)
+    if isinstance(group, dict):
+        return group
+    group = _indexed(state.get("groups") or {}, group_id)
+    return group if isinstance(group, dict) else {}
 
 
 def _compressor_groups_from_zone_map(state: dict[str, Any]) -> tuple[tuple[int, ...], ...]:

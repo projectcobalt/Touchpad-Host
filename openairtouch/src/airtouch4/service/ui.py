@@ -1357,10 +1357,11 @@ INDEX_HTML = """<!doctype html>
               <div class="field"><label>Check Interval</label><input id="adaptive-check-interval" type="number" min="5" max="3600" step="5"></div>
               <div class="field"><label>Command Cooldown</label><input id="adaptive-command-cooldown" type="number" min="1" max="7200" step="10"></div>
               <div class="field">
-                <label>MPC Control</label>
-                <select id="adaptive-mpc-control">
-                  <option value="off">Off</option>
-                  <option value="control">Control</option>
+                <label>Control Strategy</label>
+                <select id="adaptive-control-strategy">
+                  <option value="weather_setpoint">Weather Setpoint</option>
+                  <option value="mpc_setpoint">MPC Setpoint</option>
+                  <option value="hybrid_damper_mpc">Hybrid Damper MPC</option>
                 </select>
               </div>
               <div class="field"><label>MPC Horizon</label><input id="adaptive-mpc-horizon-hours" type="number" min="1" max="24" step="1"></div>
@@ -1994,7 +1995,7 @@ INDEX_HTML = """<!doctype html>
       setValue("adaptive-heat-comfort-temp", current.heat_comfort_temp ?? 20);
       setValue("adaptive-check-interval", current.check_interval ?? 60);
       setValue("adaptive-command-cooldown", current.command_cooldown ?? 300);
-      setValue("adaptive-mpc-control", current.learning_mode === "control" ? "control" : "off");
+      setValue("adaptive-control-strategy", current.control_strategy || "weather_setpoint");
       setValue("adaptive-mpc-horizon-hours", current.mpc_horizon_hours ?? 6);
       setValue("adaptive-compressor-min-run-time", current.compressor_min_run_time ?? 0);
       setValue("adaptive-compressor-min-off-time", current.compressor_min_off_time ?? 0);
@@ -2047,11 +2048,18 @@ INDEX_HTML = """<!doctype html>
       const plans = learning.plans || {};
       const latestPlanEntry = Object.entries(plans).slice(-1)[0];
       const latestPlan = latestPlanEntry ? latestPlanEntry[1] : null;
+      const planRunText = (plan) => {
+        const hours = Number(plan && plan.projected_runtime_hours);
+        if (!Number.isFinite(hours)) return "";
+        if (hours <= 0) return " / Run 0h";
+        return ` / Run ${hours.toFixed(hours >= 10 ? 0 : 1)}h`;
+      };
       const mpcText = mpc
-        ? `AC ${Number(mpcEvaluation.ac) + 1}: ${mpc.action || mpc.source || "mpc"} ${mpc.target ?? "-"} (${Math.round(Number(mpc.confidence || 0) * 100)}%)`
+        ? `AC ${Number(mpcEvaluation.ac) + 1}: ${mpc.action || mpc.source || "mpc"} ${mpc.target ?? "-"} (${Math.round(Number(mpc.confidence || 0) * 100)}%)${planRunText(mpc)}`
         : latestPlanEntry
-          ? `AC ${Number(latestPlanEntry[0]) + 1}: ${latestPlan.action || latestPlan.source || "mpc"} ${latestPlan.target ?? "-"} (${Math.round(Number(latestPlan.confidence || 0) * 100)}%)`
+          ? `AC ${Number(latestPlanEntry[0]) + 1}: ${latestPlan.action || latestPlan.source || "mpc"} ${latestPlan.target ?? "-"} (${Math.round(Number(latestPlan.confidence || 0) * 100)}%)${planRunText(latestPlan)}`
           : "None";
+      const strategyText = titleText(current.control_strategy || "weather_setpoint");
       const compressor = learning.compressor || {};
       const compressorItems = Object.entries(compressor).map(([ac, state]) => {
         const seconds = state && state.seconds_since_change !== null && state.seconds_since_change !== undefined
@@ -2061,7 +2069,7 @@ INDEX_HTML = """<!doctype html>
       });
       $("adaptive-status").innerHTML = [
         metric("Control Mode", titleText(adaptive.mode || current.mode || "off")),
-        metric("MPC Control", current.learning_mode === "control" ? "Enabled" : "Off"),
+        metric("Strategy", strategyText),
         metric("Control Zones", `${controlZones.size} Enabled`),
         metric("Learning Models", `${Object.keys(learningZones).length} Models / ${learningCount} Learning / ${readyCount} Ready`),
         metric("Samples", `${passiveSamples} Passive / ${activeSamples} Active`),
@@ -3465,7 +3473,7 @@ INDEX_HTML = """<!doctype html>
           heat_comfort_temp: Number($("adaptive-heat-comfort-temp").value),
           check_interval: Number($("adaptive-check-interval").value),
           command_cooldown: Number($("adaptive-command-cooldown").value),
-          learning_mode: $("adaptive-mpc-control").value,
+          control_strategy: $("adaptive-control-strategy").value,
           control_zones: Array.from(document.querySelectorAll("[data-adaptive-control-zone]"))
             .filter((input) => input.checked)
             .map((input) => Number(input.dataset.adaptiveControlZone)),
