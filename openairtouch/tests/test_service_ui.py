@@ -1,30 +1,358 @@
+from __future__ import annotations
+
 import unittest
 
 from airtouch4.service.ui import INDEX_HTML
 
 
 class ServiceUiTests(unittest.TestCase):
-    def test_adaptive_ui_exposes_control_strategy(self) -> None:
-        for fragment in (
+    def test_retained_factory_actions_are_exposed(self) -> None:
+        expected_fragments = [
+            'data-service-action="parameters"',
+            'data-service-action="preference"',
+            'data-service-action="service-contact"',
+            'data-service-action="turbo-group"',
+            'data-action="favourite-save"',
+            'data-action="favourite-clear"',
+            'data-program-action="program-save"',
+            'data-program-action="program-clear"',
+            'data-program-action="ac-timer-save"',
+            'data-service-action="ac-base-info"',
+            'data-service-action="ac-setting-new"',
+            'data-service-action="reset-temp-offsets"',
+            'data-service-action="grouping"',
+            'data-service-action="spill"',
+            'data-service-action="pair-sensor"',
+        ]
+
+        for fragment in expected_fragments:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, INDEX_HTML)
+
+    def test_service_ui_exposes_structured_payload_fields(self) -> None:
+        expected_fields = [
+            "show-ac-errors",
+            "damper-rpm",
+            "service-runtime-hours",
+            "selector-groups-1",
+            "fan-turbo",
+            "turbo-group",
+            'data-balance-step=',
+            'data-balance-number=',
+            'data-balance-status=',
+            "stepper-button",
+            "balance-row",
+            "scheduleBalanceCommit",
+            "Max Opening",
+            "sensorRowsFromState",
+            "sensor-row",
+            "sensor-card",
+            "sensor-calibration",
+            "data-sensor-temperature",
+            "Revise sensor temperature",
+            "sensor_temperature",
+            "Mapped Sensor",
+            "Reset Offsets",
+            'data-favourite-group=',
+            'Sending" : "Apply"',
+            'data-action="favourite-save" data-favourite="${escapeHtml(id)}">Save Favourite</button>',
+            "ac-timer-card",
+            "#programs-ac-timer.active",
+            "#programs-ac-timer > section",
+            "--ac-timer-count",
+            "calc((var(--ac-timer-count) * 360px)",
+            "configuredAcCount",
+            "configuredAcCount(state) || Math.min(4, Math.max(1, acs.length || 1))",
+            'style.setProperty("--ac-timer-count"',
+            "repeat(auto-fill, minmax(min(100%, 280px), 360px))",
+            "justify-content: start",
+            "timer-stack",
+            "timer-block",
+            'id="ac-count">0 ACs',
+            'acEntries.length === 1 ? "AC" : "ACs"',
+            'id="zone-count">0/0 Zones',
+            '${activeZoneCount}/${zoneEntries.length} Zones',
+        ]
+
+        for fragment in expected_fields:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, INDEX_HTML)
+        self.assertNotIn("zone-active-count", INDEX_HTML)
+
+    def test_control_ui_exposes_modern_controls_and_zone_history(self) -> None:
+        expected_fragments = [
+            'data-view-button="settings"',
+            'data-view-button="adaptive"',
+            "ac-bottom-row",
+            "ac-spill-pills",
+            "ac-spill-hint",
+            "hiddenSpillStatus",
+            "acControlSourceHint",
+            "ac-source-hint",
+            "Math.floor(sensor / 2) + 1",
+            "sensor === 253",
+            "sensor === 254",
+            'id="settings-app"',
+            "settings-app-grid",
+            'id="app-preferences"',
+            'id="app-runtime"',
+            "data-preference-card",
+            'id="view-adaptive"',
+            'id="adaptive-page-status"',
+            'id="adaptive-page-config"',
+            'id="adaptive-page-analytics"',
+            'id="adaptive-analytics-cards"',
+            "adaptive-config-grid",
+            "adaptive-config-card",
+            "Learned Model",
+            'id="settings-diagnostics"',
+            'data-subview-button="adaptive-page"',
+            'data-subview="status"',
+            'data-subview="config"',
+            'data-subview="analytics"',
+            'data-adaptive-save="true"',
+            'data-adaptive-model-action="reset_all"',
+            "sendAdaptiveConfig",
+            "sendAdaptiveModelAction",
+            "adaptiveSparkline",
+            "analyticsForecasts",
+            "learning.forecasts",
+            "offset_minutes",
+            "History / Now / Forecast",
+            "now-line",
+            "prediction-line",
+            "analytics-rows",
+            "analytics-row",
+            "analytics-row-status",
+            ".analytics-row.ready",
+            ".analytics-row.control",
+            ".analytics-row.learning",
+            "analytics-row-no-temp",
+            "analytics-group-title",
+            "analytics-model-badges",
+            "analytics-sparkline",
+            "analytics-sparkline-meta",
+            "zoneHasAdaptiveTemperature",
+            "minmax(500px, 3fr)",
+            "model-badge",
+            "adaptiveModelBadges",
+            "timeConstantText",
+            'modelBadge("Progress"',
+            'modelBadge("Samples"',
+            'modelBadge("Updates"',
+            'modelBadge("Outside"',
+            'modelBadge("Confidence"',
+            'modelBadge("Error"',
+            'modelBadge("Time Const"',
+            'modelBadge("Solar Gain"',
+            'modelBadge("Drift"',
+            'modelBadge("Response"',
             'id="adaptive-control-strategy"',
             '<option value="weather_setpoint">Weather Setpoint</option>',
             '<option value="mpc_setpoint">MPC Setpoint</option>',
             '<option value="hybrid_damper_mpc">Hybrid Damper MPC</option>',
-            'control_strategy: $("adaptive-control-strategy").value',
-            'setValue("adaptive-control-strategy", current.control_strategy || "weather_setpoint")',
-            'metric("Strategy", strategyText)',
-        ):
+            'id="adaptive-control-zones"',
+            "data-adaptive-control-zone",
+            "data-adaptive-model-action",
+            "accelerate_zone",
+            "reset_zone",
+            "accelerated_learning",
+            "learning_progress",
+            "Progress ${progressText}",
+            "rowClasses.push(\"ready\")",
+            "rowClasses.push(\"control\")",
+            "rowClasses.push(\"learning\")",
+            "readinessPill",
+            "adaptiveGroupEntries",
+            "groupIsSpill(group)",
+            "No Temperature",
+            "No Temperature Sensor",
+            "Waiting For Temperature",
+            "tempRows",
+            "noTempRows",
+            "isControlZone ? '<span class=\"pill on\">Control</span>'",
+            "readiness_reason",
+            "active_response_per_hour",
+            "passive_drift_per_hour",
+            "outside_coupling_per_hour",
+            "last_skip_reason",
+            'statusMetric("Skipped"',
+            "beta_solar",
+            'id="adaptive-mpc-horizon-hours"',
+            'id="adaptive-compressor-min-run-time"',
+            'id="adaptive-compressor-min-off-time"',
+            "control_strategy",
+            "projected_runtime_hours",
+            "control_zones",
+            "mpc_horizon_hours",
+            "compressor_min_run_time",
+            "compressor_min_off_time",
+            "adaptive-status-card",
+            "statusMetric",
+            "adaptiveStatusCard",
+            "displayList",
+            "shortDuration",
+            "acMemberText",
+            "compressorGuardItems",
+            "Minimum Run",
+            "Minimum Off",
+            'adaptiveStatusCard("Authority"',
+            'adaptiveStatusCard("Learning"',
+            'adaptiveStatusCard("Control"',
+            'adaptiveStatusCard("Compressor"',
+            'adaptiveStatusCard("Live Inputs"',
+            'statusMetric("Mode"',
+            'statusMetric("Strategy"',
+            'statusMetric("Zones"',
+            'statusMetric("Models"',
+            'statusMetric("Samples"',
+            'statusMetric("Confidence"',
+            'statusMetric("Latest"',
+            'statusMetric("Guard"',
+            "const compressorItems = compressorGuardItems(compressor, current)",
+            "const recommendationText = displayList(recommendations)",
+            "const actionText = displayList(actions)",
+            "titleText(mpc.action || mpc.source || \"mpc\")",
+            ".learn === true",
+            "Control Enabled",
+            "mpc_ready",
+            "prediction_std",
+            "formatExternalTemp",
+            'id="theme-selector"',
+            'data-theme-choice="system"',
+            'class="brand"',
+            "OpenAirTouch",
+            "header-status",
+            "ledStateFromHealth",
+            "led-purple",
+            "led-blue-red",
+            "AC Off / No Error",
+            "AC On",
+            "Unmapped LED",
+            'metric("Protocol"',
+            "formatProtocol(runtime)",
+            "protocol_mismatch",
+            "detected_protocol",
+            'metric("Service"',
+            'id="ac-count">0 ACs',
+            'id="zone-count">0/0 Zones',
+            "deriveAcThermostat",
+            '? "Current" : "No Temp"',
+            "sourceHint",
+            "configuredModeOptions",
+            "configuredFanOptions",
+            "fanValue < 0 || fanValue > 6",
+            "runtimeHoursText",
+            "grid-template-columns: minmax(0, 1fr) minmax(360px, 440px) 46px;",
+            ".ac-top .ac-stat-grid",
+            "ac-stat-grid",
+            "ac-stat-pill",
+            "grid-template-columns: repeat(4, minmax(72px, 1fr));",
+            "justify-self: end;",
+            "<span>Runtime</span><span>${escapeHtml(runtimeHoursText(runtime))}</span>",
+            "<span>Filter</span><span>-</span>",
+            "<span>Service</span><span>-</span>",
+            "<span>Demand</span><span>-</span>",
+            "showSetpoint",
+            "canChangeSetpoint",
+            "setpointLimitsForZone",
+            'id="control-hero"',
+            "renderControlHero",
+            "hero-card primary",
+            'class="room-panel"',
+            'id="room-active-name"',
+            'id="room-gateway-address"',
+            "renderRoomPanel",
+            "hero-card metric active-zones",
+            "hero-card metric damper-summary",
+            "averageDamperPercent",
+            "heroTrendSvg",
+            "zone-section-actions",
+            "activateView",
+            "conic-gradient(from 225deg, var(--accent) 0deg, var(--warm) 270deg",
+            "--bg: #0d1327",
+            "--accent: #4778ff",
+            "thermostat-marker",
+            "hasIndoorTemp",
+            "hasIndoorHumidity",
+            "Forecast weather",
+            "updateAlertTicker",
+            "--ticker-duration",
+            "temperatureHistoryLine",
+            "history-strip",
+            "damper-line",
+            "stroke-dasharray",
+            "temperature_history",
+            "configuredGroupEntries",
+            "configuredGroups",
+            "const groups = configuredGroups(state)",
+            "Mapped ${sensorMapCount}",
+            "balanceByZone",
+            "isEditingForm",
+            "markEditing",
+            "markProgramEditing",
+            "readonly-summary",
+            "Current Favourite State",
+            "Current Program State",
+            "Current AC Timer State",
+            "action-primary",
+            "action-danger",
+            'label.check-row',
+            'label.day-chip',
+            "refresh(true)",
+            "advanced-panel",
+            "Advanced Parameters",
+            "Advanced Control",
+            "Fan Value Mapping",
+            "Selector Zone Masks",
+            "Show Spill",
+            'type="time"',
+            "data-program-day",
+            "data-program-zone",
+            "data-program-ac",
+            "groupIsSpill",
+            "data-program-zone-spill disabled",
+            'if (spill && !selected) return ""',
+            "sensorOptions",
+            "&#9211;",
+        ]
+
+        for fragment in expected_fragments:
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, INDEX_HTML)
+        self.assertNotIn("ac-state-pill", INDEX_HTML)
+        self.assertNotIn('escapeHtml(powerLabel)', INDEX_HTML)
+        self.assertNotIn('status.turbo_supported) badges.push', INDEX_HTML)
+        self.assertNotIn('acNames.length ? acNames.join(", ") : "No AC Selected"', INDEX_HTML)
+        self.assertNotIn('<div class="analytics-row-metrics">${escapeHtml(state)}</div>', INDEX_HTML)
+        self.assertNotIn('${group.name || `Zone ${Number(id) + 1}`} ${value}', INDEX_HTML)
+        self.assertNotIn('thermostatRow.mapped_groups.join(", ")', INDEX_HTML)
 
-    def test_adaptive_ui_does_not_offer_legacy_learning_mode_selector(self) -> None:
+    def test_debug_program_tabs_are_not_primary_navigation(self) -> None:
+        self.assertNotIn('data-subview="program-options"', INDEX_HTML)
+        self.assertNotIn('data-subview="program-summary"', INDEX_HTML)
+        self.assertIn('id="program-options"', INDEX_HTML)
+        self.assertIn('id="program-summary"', INDEX_HTML)
+
+    def test_spill_selector_uses_apk_labels(self) -> None:
+        self.assertIn('[0, "None"]', INDEX_HTML)
+        self.assertIn('[1, "Spill"]', INDEX_HTML)
+        self.assertIn('[2, "Bypass"]', INDEX_HTML)
+        self.assertNotIn('[2, "Storage"]', INDEX_HTML)
+        self.assertNotIn('[3, "Reserve"]', INDEX_HTML)
+        self.assertIn('data-field="hide-spill"', INDEX_HTML)
+        self.assertNotIn('data-spill-hide-ac', INDEX_HTML)
+        self.assertIn('data-spill-open', INDEX_HTML)
+        self.assertIn('AC Spill Mode', INDEX_HTML)
+
+    def test_adaptive_ui_does_not_offer_legacy_learn_mode(self) -> None:
+        self.assertIn('id="adaptive-control-strategy"', INDEX_HTML)
+        self.assertIn('<option value="weather_setpoint">Weather Setpoint</option>', INDEX_HTML)
+        self.assertIn('<option value="mpc_setpoint">MPC Setpoint</option>', INDEX_HTML)
+        self.assertIn('<option value="hybrid_damper_mpc">Hybrid Damper MPC</option>', INDEX_HTML)
         self.assertNotIn('id="adaptive-mpc-control"', INDEX_HTML)
-        self.assertNotIn('learning_mode: $("adaptive-mpc-control").value', INDEX_HTML)
-
-    def test_adaptive_ui_surfaces_projected_runtime(self) -> None:
-        self.assertIn("projected_runtime_hours", INDEX_HTML)
-        self.assertIn("planRunText", INDEX_HTML)
-        self.assertIn("Run 0h", INDEX_HTML)
+        self.assertNotIn('<option value="learn">Learn</option>', INDEX_HTML)
+        self.assertNotIn('<label>Learning Mode</label>', INDEX_HTML)
 
 
 if __name__ == "__main__":
