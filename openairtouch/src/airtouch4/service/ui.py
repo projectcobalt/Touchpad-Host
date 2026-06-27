@@ -87,13 +87,14 @@ INDEX_HTML = """<!doctype html>
     }
     header {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 16px;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 22px;
       align-items: center;
       grid-column: 2;
       margin: 24px 0 0;
       width: 100%;
-      padding: 0 0 14px;
+      min-height: 64px;
+      padding: 0 0 10px;
       background: transparent;
       color: var(--header-ink);
       border: 0;
@@ -203,12 +204,13 @@ INDEX_HTML = """<!doctype html>
       grid-column: 1;
       grid-row: 1 / span 2;
       min-height: 100vh;
+      height: 100vh;
       position: sticky;
       top: 0;
       display: grid;
-      grid-template-rows: auto 1fr auto;
-      gap: 28px;
-      padding: 42px 40px 28px;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 18px;
+      padding: 34px 36px 22px;
       overflow: hidden;
       color: #ffffff;
       border-radius: 0 22px 22px 0;
@@ -220,6 +222,8 @@ INDEX_HTML = """<!doctype html>
     .room-brand {
       display: grid;
       gap: 8px;
+      position: relative;
+      z-index: 1;
     }
     .room-brand h1 {
       color: #fff;
@@ -232,12 +236,14 @@ INDEX_HTML = """<!doctype html>
       font-weight: 520;
     }
     .room-focus {
-      align-self: center;
+      align-self: start;
       display: grid;
-      gap: 18px;
-      min-height: 420px;
+      gap: 15px;
+      min-height: 0;
       align-content: start;
-      padding-top: 16px;
+      padding-top: 36px;
+      position: relative;
+      z-index: 1;
     }
     .room-kicker {
       color: rgba(255,255,255,.72);
@@ -247,7 +253,7 @@ INDEX_HTML = """<!doctype html>
     .room-title {
       margin-top: -10px;
       color: #fff;
-      font-size: clamp(48px, 5vw, 68px);
+      font-size: clamp(46px, 4.6vw, 62px);
       line-height: 1;
       font-weight: 330;
       letter-spacing: 0;
@@ -265,8 +271,8 @@ INDEX_HTML = """<!doctype html>
     }
     .room-stats {
       display: grid;
-      gap: 12px;
-      margin-top: 18px;
+      gap: 10px;
+      margin-top: 10px;
       color: rgba(255,255,255,.86);
     }
     .room-stat {
@@ -296,10 +302,11 @@ INDEX_HTML = """<!doctype html>
       position: absolute;
       left: 0;
       right: 0;
-      bottom: 112px;
-      height: 248px;
+      bottom: 86px;
+      height: 214px;
       pointer-events: none;
       opacity: .92;
+      z-index: 0;
       background:
         linear-gradient(180deg, transparent 0 70%, rgba(82, 60, 80, .2) 70% 100%);
     }
@@ -308,8 +315,8 @@ INDEX_HTML = """<!doctype html>
       position: absolute;
       left: 62px;
       right: -10px;
-      bottom: 44px;
-      height: 86px;
+      bottom: 38px;
+      height: 78px;
       border-radius: 42px 0 0 18px;
       background:
         radial-gradient(circle at 26% 28%, rgba(255,255,255,.72), transparent 2.6rem),
@@ -322,7 +329,7 @@ INDEX_HTML = """<!doctype html>
       left: 22px;
       right: 0;
       bottom: 8px;
-      height: 52px;
+      height: 46px;
       background:
         linear-gradient(90deg, rgba(255,255,255,.72), rgba(112, 124, 197, .34) 58%, transparent),
         repeating-linear-gradient(90deg, rgba(70, 80, 150, .22) 0 3px, transparent 3px 14px);
@@ -331,15 +338,17 @@ INDEX_HTML = """<!doctype html>
     .room-footer {
       display: grid;
       grid-template-columns: 1fr 1fr auto;
-      gap: 16px;
+      gap: 12px;
       align-items: center;
-      min-height: 86px;
-      padding: 16px 18px;
+      min-height: 72px;
+      padding: 13px 15px;
       border: 1px solid rgba(255,255,255,.12);
       border-radius: 16px;
       background: rgba(17, 23, 51, .48);
       box-shadow: 0 16px 42px rgba(17, 23, 51, .24);
       backdrop-filter: blur(14px);
+      position: relative;
+      z-index: 1;
     }
     .room-footer-cell {
       min-width: 0;
@@ -405,7 +414,8 @@ INDEX_HTML = """<!doctype html>
       }
     }
     .nav {
-      grid-column: 1 / -1;
+      grid-column: 2;
+      grid-row: 1;
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 18px;
@@ -466,7 +476,7 @@ INDEX_HTML = """<!doctype html>
       to { transform: translateX(var(--ticker-end, -100%)); }
     }
     .header-actions {
-      display: flex;
+      display: none;
       flex-wrap: wrap;
       gap: 8px;
       align-items: flex-start;
@@ -498,12 +508,12 @@ INDEX_HTML = """<!doctype html>
       text-transform: uppercase;
     }
     .nav button {
-      min-height: 46px;
+      min-height: 42px;
       border-color: transparent;
       background: transparent;
       color: var(--muted);
       border-radius: 16px;
-      padding-inline: 20px;
+      padding-inline: 18px;
       box-shadow: none;
     }
     .nav button.active {
@@ -1861,6 +1871,7 @@ INDEX_HTML = """<!doctype html>
       .room-panel {
         position: relative;
         min-height: 380px;
+        height: auto;
         border-radius: 0 0 22px 22px;
         margin: 0 -12px 14px;
       }
@@ -1894,6 +1905,10 @@ INDEX_HTML = """<!doctype html>
         grid-template-columns: 1fr;
         margin-top: 10px;
         border-radius: 22px;
+      }
+      .nav {
+        grid-column: 1;
+        grid-row: auto;
       }
       main {
         padding: 10px 0 18px;
@@ -1975,6 +1990,25 @@ INDEX_HTML = """<!doctype html>
       }
       .hero-value {
         font-size: 42px;
+      }
+    }
+    @media (max-height: 820px) and (min-width: 1041px) {
+      .room-panel {
+        padding-top: 26px;
+        padding-bottom: 18px;
+      }
+      .room-focus {
+        gap: 12px;
+        padding-top: 20px;
+      }
+      .room-title {
+        font-size: 48px;
+      }
+      .room-scene {
+        height: 174px;
+      }
+      .room-stats {
+        gap: 8px;
       }
     }
     @media (max-width: 380px) {
