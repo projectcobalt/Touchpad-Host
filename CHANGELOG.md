@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 - 2026-06-28
+
+- Expose explicit sensor-to-zone mapping fields in `/api/state` sensor rows so Home Assistant integrations can attach RF sensors to the correct zone without address heuristics.
+
 ## 0.2.8 - 2026-06-27
 
 - Add time-aware adaptive forecast ingestion for Home Assistant-style timestamped forecasts, including sorted UTC alignment, 5-minute control grids, and quality metadata.
