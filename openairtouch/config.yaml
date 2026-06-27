@@ -1,5 +1,5 @@
 name: OpenAirTouch
-version: "0.2.5"
+version: "0.2.6"
 slug: openairtouch
 description: Python host for the AirTouch internal RS485 touchpad protocol.
 arch:
@@ -19,6 +19,8 @@ panel_icon: mdi:thermostat
 panel_title: OpenAirTouch
 uart: true
 homeassistant_api: true
+discovery:
+  - openairtouch
 services:
   - mqtt:need
 ports:
