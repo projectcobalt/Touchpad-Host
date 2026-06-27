@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import time
 from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from typing import Any
 
 from ..session.queue import TransactionSpec
@@ -53,6 +54,9 @@ class ClimateSignal:
 class WeatherSignal:
     outside_temperature: float | None = None
     forecast_temperatures: tuple[float, ...] = ()
+    forecast_control_temperatures: tuple[float, ...] = ()
+    forecast_step_minutes: float = 60.0
+    forecast_quality: dict[str, Any] | None = None
     humidity: float | None = None
 
 
@@ -154,7 +158,7 @@ class AdaptiveController:
             return []
         weather = ((integrations.get("weather") or {}).get("state") or {}) if integrations else {}
         indoor = ((integrations.get("indoor") or {}).get("state") or {}) if integrations else {}
-        weather_signal = _weather_signal(weather, integrations)
+        weather_signal = _weather_signal(weather, integrations, horizon_hours=self.config.mpc_horizon_hours)
         solar_signal = _solar_signal(weather, integrations)
         state = runtime_snapshot.get("state") or {}
         self._set_compressor_groups(_compressor_groups_from_zone_map(state) or self.config.compressor_groups)
@@ -173,6 +177,7 @@ class AdaptiveController:
         outside = weather_signal.outside_temperature
         status["outside_temperature"] = outside
         status["forecast_temperatures"] = list(weather_signal.forecast_temperatures)
+        status["forecast_quality"] = weather_signal.forecast_quality or {}
         status["solar"] = {
             "q_solar": solar_signal.q_solar,
             "source": solar_signal.source,
@@ -248,7 +253,12 @@ class AdaptiveController:
             hybrid_status = self._hybrid_shadow_status(controlled_rooms, target, cooling, proposal)
         status["evaluations"][-1].update({
             "target": target,
-            "forecast_target": self._forecast_target(self._target_setpoint(outside, cooling), weather.forecast_temperatures, cooling),
+            "forecast_target": self._forecast_target(
+                self._target_setpoint(outside, cooling),
+                _forecast_values_for_control(weather),
+                cooling,
+                step_minutes=_forecast_step_for_control(weather),
+            ),
             "mpc": _proposal_status(proposal),
             "hybrid": hybrid_status,
             "solar": {
@@ -314,7 +324,12 @@ class AdaptiveController:
         if not _indoor_allows_auto_off(climate.indoor_temperature, setpoint, cooling):
             status["recommendations"].append(f"{name}: Auto Off held by indoor temperature")
             return []
-        if not _forecast_allows_auto_off(weather.forecast_temperatures, setpoint, cooling):
+        if not _forecast_allows_auto_off(
+            _forecast_values_for_control(weather),
+            setpoint,
+            cooling,
+            step_minutes=_forecast_step_for_control(weather),
+        ):
             status["recommendations"].append(f"{name}: Auto Off held by forecast")
             return []
         key = f"ac:{ac_id}:power"
@@ -346,7 +361,12 @@ class AdaptiveController:
         ac_status = ac.get("status") or {}
         cooling = device.mode == 4
         base_target = self._target_setpoint(outside, cooling)
-        forecast_target = self._forecast_target(base_target, weather.forecast_temperatures, cooling)
+        forecast_target = self._forecast_target(
+            base_target,
+            _forecast_values_for_control(weather),
+            cooling,
+            step_minutes=_forecast_step_for_control(weather),
+        )
         target = self._adaptive_target(ac, outside, weather, climate, cooling)
         groups = _groups_for_ac(state, ac_id, ac)
         controlled_rooms = tuple(room for room in device.rooms if room.active and room.control_enabled and room.temperature is not None)
@@ -415,7 +435,12 @@ class AdaptiveController:
         ac_status = ac.get("status") or {}
         cooling = device.mode == 4
         base_target = self._target_setpoint(outside, cooling)
-        forecast_target = self._forecast_target(base_target, weather.forecast_temperatures, cooling)
+        forecast_target = self._forecast_target(
+            base_target,
+            _forecast_values_for_control(weather),
+            cooling,
+            step_minutes=_forecast_step_for_control(weather),
+        )
         target = self._adaptive_target(ac, outside, weather, climate, cooling)
         proposal = self._mpc_proposal(device, target, cooling, outside, weather, solar, climate)
         if proposal is not None:
@@ -522,7 +547,12 @@ class AdaptiveController:
 
     def _adaptive_target(self, ac: dict[str, Any], outside: float, weather: WeatherSignal, climate: ClimateSignal, cooling: bool) -> int:
         target = self._target_setpoint(outside, cooling)
-        target = self._forecast_target(target, weather.forecast_temperatures, cooling)
+        target = self._forecast_target(
+            target,
+            _forecast_values_for_control(weather),
+            cooling,
+            step_minutes=_forecast_step_for_control(weather),
+        )
         target = self._humidity_adjusted_target(target, climate.humidity, cooling)
         return _clamp_setpoint(target, ac)
 
@@ -547,7 +577,8 @@ class AdaptiveController:
             cooling=cooling,
             horizon_hours=self.config.mpc_horizon_hours,
             outside_temperature=outside,
-            outside_forecast=weather.forecast_temperatures,
+            outside_forecast=_forecast_values_for_control(weather),
+            outside_forecast_step_minutes=_forecast_step_for_control(weather),
             humidity=climate.humidity,
             q_solar=solar.q_solar,
             advisory=advisory,
@@ -559,10 +590,11 @@ class AdaptiveController:
             return min(outside_round - self.config.cool_diff, self.config.cool_comfort_temp)
         return max(outside_round + self.config.heat_diff, self.config.heat_comfort_temp)
 
-    def _forecast_target(self, current_target: int, forecast_temperatures: tuple[float, ...], cooling: bool) -> int:
+    def _forecast_target(self, current_target: int, forecast_temperatures: tuple[float, ...], cooling: bool, *, step_minutes: float = 60.0) -> int:
         if not forecast_temperatures:
             return current_target
-        targets = [self._target_setpoint(temperature, cooling) for temperature in forecast_temperatures[:6]]
+        near_term_count = max(1, int(round((6 * 60) / max(1.0, step_minutes))))
+        targets = [self._target_setpoint(temperature, cooling) for temperature in forecast_temperatures[:near_term_count]]
         if cooling:
             return min([current_target, *targets])
         return max([current_target, *targets])
@@ -699,6 +731,7 @@ class AdaptiveController:
             "errors": [],
             "evaluations": [],
             "forecast_temperatures": [],
+            "forecast_quality": {"status": "missing", "used_for_control": False},
             "solar": {"q_solar": 0.0, "source": "none", "irradiance_w_m2": None, "cloud_cover": None, "sun_elevation": None},
             "learning": self._mpc.status(time.monotonic()),
             "active_ac": sorted(self._adapted_ac),
@@ -771,10 +804,14 @@ def _strategy_uses_mpc(control_strategy: str) -> bool:
     return control_strategy in {"mpc_setpoint", "hybrid_damper_mpc"}
 
 
-def _weather_signal(weather: dict[str, Any], integrations: dict[str, Any]) -> WeatherSignal:
+def _weather_signal(weather: dict[str, Any], integrations: dict[str, Any], *, horizon_hours: int) -> WeatherSignal:
+    forecast = _forecast_frame(weather, integrations, horizon_hours=horizon_hours)
     return WeatherSignal(
         outside_temperature=_weather_temperature_c(weather),
-        forecast_temperatures=_forecast_temperatures_c(weather, integrations),
+        forecast_temperatures=forecast["temperatures"],
+        forecast_control_temperatures=forecast["control_temperatures"],
+        forecast_step_minutes=forecast["step_minutes"],
+        forecast_quality=forecast["quality"],
         humidity=_number(weather.get("humidity")),
     )
 
@@ -786,6 +823,16 @@ def _weather_temperature_c(weather: dict[str, Any]) -> float | None:
     return _temperature_to_c(value, weather.get("temperature_unit") or weather.get("unit_of_measurement") or "C")
 
 
+def _forecast_values_for_control(weather: WeatherSignal) -> tuple[float, ...]:
+    if weather.forecast_quality and weather.forecast_quality.get("used_for_control") is False:
+        return ()
+    return weather.forecast_control_temperatures or weather.forecast_temperatures
+
+
+def _forecast_step_for_control(weather: WeatherSignal) -> float:
+    return weather.forecast_step_minutes if weather.forecast_control_temperatures else 60.0
+
+
 def _temperature_to_c(value: float, unit: Any) -> float:
     unit_name = str(unit or "C").upper()
     if "F" in unit_name:
@@ -793,7 +840,56 @@ def _temperature_to_c(value: float, unit: Any) -> float:
     return value
 
 
-def _forecast_temperatures_c(weather: dict[str, Any], integrations: dict[str, Any]) -> tuple[float, ...]:
+def _forecast_frame(weather: dict[str, Any], integrations: dict[str, Any], *, horizon_hours: int) -> dict[str, Any]:
+    sources = _forecast_sources(weather, integrations)
+    default_unit = weather.get("temperature_unit") or weather.get("unit_of_measurement") or "C"
+    timed_points: list[tuple[datetime, float]] = []
+    untimed: list[float] = []
+    entry_count = 0
+    for source in sources:
+        for entry in _forecast_entries(source):
+            entry_count += 1
+            ts, value = _forecast_entry_time_temperature(entry, default_unit)
+            if value is None:
+                continue
+            if ts is None:
+                untimed.append(value)
+            else:
+                timed_points.append((ts, value))
+
+    if timed_points:
+        return _timed_forecast_frame(timed_points, horizon_hours=horizon_hours, entry_count=entry_count)
+    if untimed:
+        values = tuple(untimed[:12])
+        return {
+            "temperatures": values,
+            "control_temperatures": values,
+            "step_minutes": 60.0,
+            "quality": {
+                "status": "untimed",
+                "timed": False,
+                "used_for_control": True,
+                "entry_count": entry_count,
+                "usable_count": len(values),
+                "step_minutes": 60.0,
+            },
+        }
+    return {
+        "temperatures": (),
+        "control_temperatures": (),
+        "step_minutes": 60.0,
+        "quality": {
+            "status": "missing",
+            "timed": False,
+            "used_for_control": False,
+            "entry_count": entry_count,
+            "usable_count": 0,
+            "step_minutes": 60.0,
+        },
+    }
+
+
+def _forecast_sources(weather: dict[str, Any], integrations: dict[str, Any]) -> list[Any]:
     sources: list[Any] = [weather.get("forecast")]
     if integrations:
         forecast_state = (integrations.get("forecast") or {}).get("state")
@@ -801,27 +897,148 @@ def _forecast_temperatures_c(weather: dict[str, Any], integrations: dict[str, An
             sources.extend([forecast_state.get("forecast"), forecast_state.get("hourly"), forecast_state.get("daily")])
         else:
             sources.append(forecast_state)
-    result: list[float] = []
-    default_unit = weather.get("temperature_unit") or weather.get("unit_of_measurement") or "C"
-    for source in sources:
-        if not source:
+    return sources
+
+
+def _forecast_entries(source: Any) -> list[Any]:
+    if not source:
+        return []
+    if isinstance(source, list):
+        return list(source)
+    if isinstance(source, dict):
+        if _forecast_entry_datetime(source) is not None or any(key in source for key in ("temperature", "native_temperature", "templow")):
+            return [source]
+        return [
+            {"datetime": key, "temperature": value} if not isinstance(value, dict) else {"datetime": key, **value}
+            for key, value in source.items()
+        ]
+    return [{"temperature": source}]
+
+
+def _forecast_entry_time_temperature(entry: Any, default_unit: Any) -> tuple[datetime | None, float | None]:
+    if not isinstance(entry, dict):
+        value = _number(entry)
+        return None, value
+    value = _number(
+        entry.get("temperature")
+        if entry.get("temperature") is not None
+        else entry.get("native_temperature")
+        if entry.get("native_temperature") is not None
+        else entry.get("templow")
+    )
+    if value is None:
+        return _forecast_entry_datetime(entry), None
+    unit = entry.get("temperature_unit") or entry.get("native_temperature_unit") or default_unit
+    return _forecast_entry_datetime(entry), _temperature_to_c(value, unit)
+
+
+def _forecast_entry_datetime(entry: dict[str, Any]) -> datetime | None:
+    for key in ("datetime", "time", "timestamp", "start_time", "period_start"):
+        parsed = _parse_datetime(entry.get(key))
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _parse_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        dt = value
+    elif isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        if text.endswith("Z"):
+            text = f"{text[:-1]}+00:00"
+        try:
+            dt = datetime.fromisoformat(text)
+        except ValueError:
+            return None
+    else:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _timed_forecast_frame(points: list[tuple[datetime, float]], *, horizon_hours: int, entry_count: int) -> dict[str, Any]:
+    ordered = sorted(points, key=lambda item: item[0])
+    deduped: dict[datetime, float] = {}
+    for ts, value in ordered:
+        deduped[ts] = value
+    ordered = sorted(deduped.items(), key=lambda item: item[0])
+    now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    horizon_blocks = max(1, int(horizon_hours * 60 / 5))
+    start = _floor_to_step(now, 5)
+    end = start.timestamp() + ((horizon_blocks - 1) * 5 * 60)
+    first_ts = ordered[0][0]
+    last_ts = ordered[-1][0]
+    base_quality = {
+        "timed": True,
+        "entry_count": entry_count,
+        "usable_count": len(ordered),
+        "step_minutes": 5.0,
+        "first_datetime": first_ts.isoformat(),
+        "last_datetime": last_ts.isoformat(),
+        "horizon_blocks": horizon_blocks,
+    }
+    if last_ts.timestamp() < start.timestamp() - (30 * 60):
+        return {
+            "temperatures": tuple(value for _ts, value in ordered[:12]),
+            "control_temperatures": (),
+            "step_minutes": 5.0,
+            "quality": {**base_quality, "status": "stale", "used_for_control": False},
+        }
+    if first_ts.timestamp() > end:
+        return {
+            "temperatures": tuple(value for _ts, value in ordered[:12]),
+            "control_temperatures": (),
+            "step_minutes": 5.0,
+            "quality": {**base_quality, "status": "out_of_horizon", "used_for_control": False},
+        }
+    blocks, sparse = _forecast_blocks(ordered, start=start, horizon_blocks=horizon_blocks)
+    sampled = tuple(value for _ts, value in ordered[:12])
+    return {
+        "temperatures": sampled,
+        "control_temperatures": tuple(blocks),
+        "step_minutes": 5.0,
+        "quality": {**base_quality, "status": "sparse" if sparse else "ok", "used_for_control": bool(blocks)},
+    }
+
+
+def _forecast_blocks(points: list[tuple[datetime, float]], *, start: datetime, horizon_blocks: int) -> tuple[list[float], bool]:
+    block_values: list[float] = []
+    sparse = False
+    point_seconds = [(ts.timestamp(), value) for ts, value in points]
+    index = 0
+    for block in range(horizon_blocks):
+        ts = start.timestamp() + (block * 5 * 60)
+        while index + 1 < len(point_seconds) and point_seconds[index + 1][0] <= ts:
+            index += 1
+        if ts <= point_seconds[0][0]:
+            if point_seconds[0][0] - ts > 2 * 3600:
+                sparse = True
+            block_values.append(point_seconds[0][1])
             continue
-        entries = source if isinstance(source, list) else [source]
-        for entry in entries:
-            if not isinstance(entry, dict):
-                continue
-            value = _number(
-                entry.get("temperature")
-                if entry.get("temperature") is not None
-                else entry.get("native_temperature")
-                if entry.get("native_temperature") is not None
-                else entry.get("templow")
-            )
-            if value is None:
-                continue
-            unit = entry.get("temperature_unit") or entry.get("native_temperature_unit") or default_unit
-            result.append(_temperature_to_c(value, unit))
-    return tuple(result[:12])
+        if index + 1 >= len(point_seconds):
+            if ts - point_seconds[index][0] > 2 * 3600:
+                sparse = True
+            block_values.append(point_seconds[index][1])
+            continue
+        left_ts, left_value = point_seconds[index]
+        right_ts, right_value = point_seconds[index + 1]
+        if right_ts - left_ts > 3 * 3600:
+            sparse = True
+            block_values.append(left_value)
+            continue
+        ratio = (ts - left_ts) / max(1.0, right_ts - left_ts)
+        block_values.append(left_value + ((right_value - left_value) * ratio))
+    return block_values, sparse
+
+
+def _floor_to_step(dt: datetime, minutes: int) -> datetime:
+    step_seconds = minutes * 60
+    floored = int(dt.timestamp() // step_seconds) * step_seconds
+    return datetime.fromtimestamp(floored, timezone.utc)
 
 
 def _solar_signal(weather: dict[str, Any], integrations: dict[str, Any]) -> SolarSignal:
@@ -957,10 +1174,11 @@ def _indoor_allows_auto_off(indoor_temperature: float | None, setpoint: float, c
     return indoor_temperature >= setpoint - 0.5
 
 
-def _forecast_allows_auto_off(forecast_temperatures: tuple[float, ...], setpoint: float, cooling: bool) -> bool:
+def _forecast_allows_auto_off(forecast_temperatures: tuple[float, ...], setpoint: float, cooling: bool, *, step_minutes: float = 60.0) -> bool:
     if not forecast_temperatures:
         return True
-    near_term = forecast_temperatures[:6]
+    near_term_count = max(1, int(round((6 * 60) / max(1.0, step_minutes))))
+    near_term = forecast_temperatures[:near_term_count]
     if cooling:
         return min(near_term) <= setpoint
     return max(near_term) >= setpoint

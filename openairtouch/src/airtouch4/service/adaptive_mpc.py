@@ -736,6 +736,7 @@ class AdaptiveMpcEngine:
         horizon_hours: int,
         outside_temperature: float | None = None,
         outside_forecast: list[float] | tuple[float, ...] = (),
+        outside_forecast_step_minutes: float = 60.0,
         humidity: float | None = None,
         q_solar: float = 0.0,
         advisory: bool = False,
@@ -758,7 +759,7 @@ class AdaptiveMpcEngine:
         confidence = min(confidences)
         blocks = max(1, horizon_hours * int(60 / PLAN_DT_MINUTES))
         fallback_outdoor = outside_temperature if outside_temperature is not None else controlled[0][2]
-        outdoor = _expand_hourly(outside_forecast, blocks, fallback_outdoor)
+        outdoor = _expand_forecast(outside_forecast, blocks, fallback_outdoor, step_minutes=outside_forecast_step_minutes)
         heat_targets = [baseline_target] * blocks
         cool_targets = [baseline_target] * blocks
         predictions: list[list[float]] = []
@@ -1128,12 +1129,17 @@ def _power_fraction(model: RCModel, room_temp: float, outdoor_temp: float, targe
 
 
 def _expand_hourly(values: list[float] | tuple[float, ...], blocks: int, fallback: float) -> list[float]:
+    return _expand_forecast(values, blocks, fallback, step_minutes=60.0)
+
+
+def _expand_forecast(values: list[float] | tuple[float, ...], blocks: int, fallback: float, *, step_minutes: float) -> list[float]:
     if not values:
         return [fallback] * blocks
+    normalized = [float(value) for value in values]
+    per_value = max(1, int(round(max(PLAN_DT_MINUTES, step_minutes) / PLAN_DT_MINUTES)))
     result: list[float] = []
-    per_hour = int(60 / PLAN_DT_MINUTES)
-    for value in values:
-        result.extend([float(value)] * per_hour)
+    for value in normalized:
+        result.extend([value] * per_value)
         if len(result) >= blocks:
             break
     while len(result) < blocks:
