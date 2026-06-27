@@ -38,6 +38,9 @@ configuration:
   heartbeat_payload:
     name: Heartbeat Payload
     description: Optional raw hex override for the touchpad heartbeat; leave blank to use Touchpad temperature.
+  ui_theme:
+    name: UI Theme
+    description: Ingress UI theme preference. System follows Home Assistant/browser preference.
   bus_log:
     name: Bus Log
     description: Write RX, TX, status, and transaction events to persistent add-on storage.

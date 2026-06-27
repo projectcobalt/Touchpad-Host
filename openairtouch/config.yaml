@@ -10,7 +10,6 @@ arch:
   - i386
 startup: application
 boot: manual
-stage: experimental
 init: false
 panel_admin: true
 watchdog: http://[HOST]:[PORT:8099]/api/health
@@ -41,6 +40,7 @@ options:
   touchpad_temperature_sensor: ""
   touchpad_temperature: 25.0
   heartbeat_payload: ""
+  ui_theme: system
   bus_log: false
   weather_entity: ""
   forecast_weather_entity: ""
@@ -78,6 +78,7 @@ schema:
   touchpad_temperature_sensor: str
   touchpad_temperature: float
   heartbeat_payload: str
+  ui_theme: list(system|light|dark)
   bus_log: bool
   weather_entity: str
   forecast_weather_entity: str
