@@ -52,7 +52,7 @@ MQTT_USERNAME="$(config mqtt_username "")"
 MQTT_PASSWORD="$(config mqtt_password "")"
 MQTT_DISCOVERY="$(config mqtt_discovery true)"
 MQTT_DISCOVERY_PREFIX="$(config mqtt_discovery_prefix homeassistant)"
-MQTT_TOPIC_PREFIX="$(config mqtt_topic_prefix airtouch4)"
+MQTT_TOPIC_PREFIX="$(config mqtt_topic_prefix openairtouch)"
 MQTT_PUBLISH_INTERVAL="$(config mqtt_publish_interval 10.0)"
 REMOTE_ERROR_RESOLUTION="$(config remote_error_resolution false)"
 REMOTE_ERROR_CACHE_DAYS="$(config remote_error_cache_days 2.0)"
@@ -157,5 +157,5 @@ if [[ "${REMOTE_ERROR_RESOLUTION}" == "true" ]]; then
     ARGS+=("--remote-error-resolution")
 fi
 
-echo "Starting OpenAirtouch with ${TRANSPORT} (${PROTOCOL})"
+echo "Starting OpenAirTouch with ${TRANSPORT} (${PROTOCOL})"
 exec /opt/airtouch4/venv/bin/python /opt/airtouch4/scripts/airtouch_service.py "${ARGS[@]}"

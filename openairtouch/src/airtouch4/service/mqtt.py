@@ -22,8 +22,8 @@ class MqttConfig:
     password: str = ""
     discovery: bool = True
     discovery_prefix: str = "homeassistant"
-    topic_prefix: str = "airtouch4"
-    client_id: str = "airtouch4-touchpad-host"
+    topic_prefix: str = "openairtouch"
+    client_id: str = "openairtouch"
     publish_interval: float = 10.0
 
     @property
@@ -164,15 +164,15 @@ class MqttStatePublisher:
 
     def _publish_discovery(self, state: dict[str, Any]) -> None:
         device = {
-            "identifiers": ["airtouch4_touchpad_host"],
-            "name": "AirTouch Touchpad Host",
+            "identifiers": ["openairtouch"],
+            "name": "OpenAirTouch",
             "manufacturer": "Polyaire",
             "model": "AirTouch",
         }
         for ac_id, ac in sorted((state.get("acs") or {}).items(), key=lambda item: int(item[0])):
             base = ac.get("base") or {}
             name = base.get("name") or f"AC {int(ac_id) + 1}"
-            object_id = f"airtouch4_ac_{int(ac_id) + 1}"
+            object_id = f"openairtouch_ac_{int(ac_id) + 1}"
             self._publish_sensor_discovery(device, f"{object_id}_current_temperature", f"{name} Current Temperature", f"{self.config.topic_prefix}/ac/{ac_id}/current_temperature", "temperature", "\u00b0C")
             self._publish_sensor_discovery(device, f"{object_id}_target_temperature", f"{name} Target Temperature", f"{self.config.topic_prefix}/ac/{ac_id}/target_temperature", "temperature", "\u00b0C")
             self._publish_sensor_discovery(device, f"{object_id}_mode", f"{name} Mode", f"{self.config.topic_prefix}/ac/{ac_id}/mode")
@@ -180,7 +180,7 @@ class MqttStatePublisher:
         for group_id, group in sorted((state.get("active_groups") or state.get("groups") or {}).items(), key=lambda item: int(item[0])):
             status = group.get("status") or {}
             name = group.get("name") or f"Zone {int(group_id) + 1}"
-            object_id = f"airtouch4_zone_{int(group_id) + 1}"
+            object_id = f"openairtouch_zone_{int(group_id) + 1}"
             if status.get("has_sensor"):
                 self._publish_sensor_discovery(device, f"{object_id}_current_temperature", f"{name} Current Temperature", f"{self.config.topic_prefix}/zone/{group_id}/current_temperature", "temperature", "\u00b0C")
                 self._publish_sensor_discovery(device, f"{object_id}_target_temperature", f"{name} Target Temperature", f"{self.config.topic_prefix}/zone/{group_id}/target_temperature", "temperature", "\u00b0C")

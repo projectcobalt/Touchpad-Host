@@ -8,7 +8,7 @@ INDEX_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>OpenAirtouch</title>
+  <title>OpenAirTouch</title>
   <style>
     :root {
       color-scheme: light;
@@ -1260,7 +1260,7 @@ INDEX_HTML = """<!doctype html>
   <header>
     <div class="brand">
       <div id="status" class="status header-status led-amber" title="Connecting" aria-label="Connecting"><span class="dot"></span><span class="status-text">Connecting</span></div>
-      <h1 id="app-title">OpenAirtouch</h1>
+      <h1 id="app-title">OpenAirTouch</h1>
     </div>
     <div class="header-actions">
       <div class="chip-stack">
@@ -3246,7 +3246,7 @@ INDEX_HTML = """<!doctype html>
       const config = controller.config || {};
       configuredTheme = config.ui_theme || "system";
       applyTheme();
-      $("app-title").textContent = "OpenAirtouch";
+      $("app-title").textContent = "OpenAirTouch";
       renderAlerts(collectAlerts(controller, state, integrations, transactions));
       renderWeather(integrations);
       renderIndoor(integrations, state);

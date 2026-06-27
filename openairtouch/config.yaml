@@ -1,6 +1,6 @@
-name: OpenAirtouch
-version: "0.2.4"
-slug: airtouch4_touchpad_host
+name: OpenAirTouch
+version: "0.2.5"
+slug: openairtouch
 description: Python host for the AirTouch internal RS485 touchpad protocol.
 arch:
   - aarch64
@@ -16,7 +16,7 @@ watchdog: http://[HOST]:[PORT:8099]/api/health
 ingress: true
 ingress_port: 8099
 panel_icon: mdi:thermostat
-panel_title: OpenAirtouch
+panel_title: OpenAirTouch
 uart: true
 homeassistant_api: true
 services:
@@ -56,7 +56,7 @@ options:
   mqtt_password: ""
   mqtt_discovery: true
   mqtt_discovery_prefix: homeassistant
-  mqtt_topic_prefix: airtouch4
+  mqtt_topic_prefix: openairtouch
   mqtt_publish_interval: 10.0
   remote_error_resolution: false
   remote_error_cache_days: 2.0

@@ -17,7 +17,7 @@ def create_app(controller: RuntimeController):
     except ModuleNotFoundError as exc:  # pragma: no cover - import guard
         raise RuntimeError("FastAPI is required for the service API. Install dependencies from requirements.txt") from exc
 
-    app = FastAPI(title="AirTouch 4 Touchpad Host", version="0.1.0")
+    app = FastAPI(title="OpenAirTouch", version="0.2.5")
 
     @app.on_event("startup")
     def _startup() -> None:
