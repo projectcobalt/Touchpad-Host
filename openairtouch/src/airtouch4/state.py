@@ -205,17 +205,11 @@ class AirTouchState:
         current.setdefault("listed", None)
 
     def sensor_view(self) -> list[dict[str, Any]]:
-        mapped: dict[int, list[str]] = {}
-        for group_id, group in self.groups.items():
-            grouping = group.get("grouping") or {}
-            status = group.get("status") or {}
-            sensor = grouping.get("thermostat", status.get("sensor"))
-            if not isinstance(sensor, int) or sensor == 255:
-                continue
-            mapped.setdefault(sensor, []).append(group.get("name") or f"Zone {group_id + 1}")
+        mapped = self._sensor_zone_mappings()
 
         rows: list[dict[str, Any]] = []
         for sensor, data in sorted(self.sensors.items()):
+            mappings = mapped.get(sensor, [])
             rows.append({
                 "id": sensor,
                 "address": f"0x{sensor:02X}" if sensor >= 0x80 else str(sensor),
@@ -229,7 +223,9 @@ class AirTouchState:
                 "battery": data.get("battery"),
                 "low_battery": data.get("low_battery"),
                 "mac": data.get("mac"),
-                "mapped_groups": mapped.get(sensor, []),
+                "mapped_groups": [mapping["name"] for mapping in mappings],
+                "mapped_group_ids": [mapping["group_id"] for mapping in mappings],
+                "mapped_zones": mappings,
             })
 
         for supply in self.system.get("supply_air", []) or []:
@@ -250,9 +246,60 @@ class AirTouchState:
                 "low_battery": None,
                 "mac": None,
                 "mapped_groups": [],
+                "mapped_group_ids": [],
+                "mapped_zones": [],
                 "ac": ac,
             })
         return rows
+
+    def _sensor_zone_mappings(self) -> dict[int, list[dict[str, Any]]]:
+        mapped: dict[int, list[dict[str, Any]]] = {}
+        for group_id, group in sorted(self.groups.items()):
+            zone_mapping = self._zone_mapping_for_group(group_id, group)
+            if zone_mapping is None:
+                continue
+            sensor, mapping = zone_mapping
+            mapped.setdefault(sensor, []).append(mapping)
+        return mapped
+
+    def _zone_mapping_for_group(self, group_id: int, group: dict[str, Any]) -> tuple[int, dict[str, Any]] | None:
+        grouping = group.get("grouping") or {}
+        status = group.get("status") or {}
+        sensor = grouping.get("thermostat")
+        source = "grouping.thermostat"
+        if not isinstance(sensor, int):
+            sensor = status.get("sensor")
+            source = "group_status.sensor"
+        if not isinstance(sensor, int) or sensor == 255:
+            return None
+
+        name = group.get("name") or f"Zone {group_id + 1}"
+        mapping: dict[str, Any] = {
+            "group_id": group_id,
+            "zone_id": group_id,
+            "zone_number": group_id + 1,
+            "name": name,
+            "source": source,
+        }
+        ac_id = self._ac_id_for_group(group_id)
+        if ac_id is not None:
+            mapping["ac_id"] = ac_id
+        if isinstance(grouping.get("zone_start"), int):
+            mapping["damper_zone_start"] = grouping["zone_start"]
+        if isinstance(grouping.get("zone_count"), int):
+            mapping["damper_zone_count"] = grouping["zone_count"]
+        return sensor, mapping
+
+    def _ac_id_for_group(self, group_id: int) -> int | None:
+        for ac_id, ac in sorted(self.acs.items()):
+            base = ac.get("base") if isinstance(ac, dict) else None
+            if not isinstance(base, dict):
+                continue
+            start = base.get("group_start")
+            count = base.get("group_count")
+            if isinstance(start, int) and isinstance(count, int) and start <= group_id < start + count:
+                return ac_id
+        return None
 
     def _remember_group_temperature(self, record: dict[str, Any]) -> None:
         group = record.get("group")
