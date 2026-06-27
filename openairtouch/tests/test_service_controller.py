@@ -10,7 +10,7 @@ import unittest
 from typing import Iterable
 
 from airtouch4.packet import AirTouchPacket
-from airtouch4.runtime import RuntimeConfig, RuntimeEvent
+from airtouch4.runtime import AirTouchRuntime, RuntimeConfig, RuntimeEvent
 from airtouch4.service.adaptive import AdaptiveConfig
 from airtouch4.service.adaptive_mpc import ZoneThermalModel
 from airtouch4.service.controller import RuntimeController, RuntimeControllerConfig, _event_record
@@ -64,6 +64,41 @@ def wire_packet(command: int, payload: bytes = b"", *, src: int = 0x80, dest: in
 
 
 class RuntimeControllerTests(unittest.TestCase):
+    def test_runtime_queues_sensor_info_requests_after_sensor_list(self) -> None:
+        runtime = AirTouchRuntime(
+            FakeTransport(),
+            RuntimeConfig(active=True, detect_seconds=0.0, init_transactions=False),
+        )
+
+        runtime._queue_sensor_info_requests({
+            "type": "sensor_list",
+            "sensor_addresses": [0, 2, 4, 0x90],
+        })
+
+        assert runtime.transactions is not None
+        pending = [item.spec for item in runtime.transactions.pending]
+        self.assertEqual([spec.command for spec in pending], [0x73, 0x73, 0x73, 0x73])
+        self.assertEqual([spec.payload for spec in pending], [b"\x00", b"\x02", b"\x04", b"\x90"])
+        self.assertEqual([spec.name for spec in pending], [
+            "sensor info 0",
+            "sensor info 2",
+            "sensor info 4",
+            "sensor info 0x90",
+        ])
+
+    def test_runtime_does_not_duplicate_sensor_info_requests(self) -> None:
+        runtime = AirTouchRuntime(
+            FakeTransport(),
+            RuntimeConfig(active=True, detect_seconds=0.0, init_transactions=False),
+        )
+
+        decoded = {"type": "sensor_list", "sensor_addresses": [0, 2]}
+        runtime._queue_sensor_info_requests(decoded)
+        runtime._queue_sensor_info_requests(decoded)
+
+        assert runtime.transactions is not None
+        self.assertEqual(len(runtime.transactions.pending), 2)
+
     def test_controller_starts_runtime_and_reports_health(self) -> None:
         transport = FakeTransport()
         controller = RuntimeController(

@@ -213,18 +213,19 @@ class AirTouchState:
             mappings = mapped.get(sensor, [])
             mapping_status = "resolved" if len(mappings) == 1 else "ambiguous" if mappings else "unmapped"
             resolved_mapping = mappings[0] if mapping_status == "resolved" else None
+            fallback_status = self._status_for_mapping(resolved_mapping)
             rows.append({
                 "id": sensor,
                 "address": f"0x{sensor:02X}" if sensor >= 0x80 else str(sensor),
                 "name": data.get("sensor_name") or SENSOR_SELECTORS.get(sensor, f"rf_sensor_{sensor}"),
                 "kind": data.get("kind") or ("touchpad" if sensor in (0x90, 0x91) else "rf"),
-                "temperature": data.get("temperature"),
+                "temperature": _first_not_none(data.get("temperature"), fallback_status.get("temperature")),
                 "status": data.get("status") or ("missing" if data.get("present") is False else "listed" if data.get("listed") else "unknown"),
                 "present": data.get("present"),
                 "listed": data.get("listed"),
                 "signal": data.get("signal"),
                 "battery": data.get("battery"),
-                "low_battery": data.get("low_battery"),
+                "low_battery": _first_not_none(data.get("low_battery"), fallback_status.get("low_battery")),
                 "mac": data.get("mac"),
                 "mapping_status": mapping_status,
                 "resolved_group_id": None if resolved_mapping is None else resolved_mapping["group_id"],
@@ -264,6 +265,16 @@ class AirTouchState:
                 "ac": ac,
             })
         return rows
+
+    def _status_for_mapping(self, mapping: dict[str, Any] | None) -> dict[str, Any]:
+        if mapping is None:
+            return {}
+        group_id = mapping.get("group_id")
+        if not isinstance(group_id, int):
+            return {}
+        group = self.groups.get(group_id) or {}
+        status = group.get("status") or {}
+        return status if isinstance(status, dict) else {}
 
     def _sensor_zone_mappings(self) -> dict[int, list[dict[str, Any]]]:
         mapped: dict[int, list[dict[str, Any]]] = {}
@@ -386,3 +397,10 @@ def _sensor_ref(sensor_id: int | None, kind: str | None, slot: int | None, sourc
         "source": source,
         "mapping_status": status,
     }
+
+
+def _first_not_none(*values: Any) -> Any:
+    for value in values:
+        if value is not None:
+            return value
+    return None

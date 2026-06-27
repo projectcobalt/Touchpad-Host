@@ -77,6 +77,47 @@ class AirTouchStateTests(unittest.TestCase):
         self.assertEqual(status["sensor_source"], "grouping.sensor_slot")
         self.assertEqual(status["sensor_mapping_status"], "resolved")
 
+    def test_sensor_view_falls_back_to_resolved_zone_temperature(self) -> None:
+        state = AirTouchState()
+        state.system["group_count"] = 1
+        state.groups = {
+            0: {
+                "name": "Living",
+                "grouping": {"thermostat": 0, "zone_start": 0, "zone_count": 1},
+                "status": {"has_sensor": True, "temperature": 19, "low_battery": False},
+            },
+        }
+        state.sensors = {
+            0: {"kind": "rf", "sensor_name": "rf_sensor_0", "listed": True, "present": True}
+        }
+
+        row = state.sensor_view()[0]
+
+        self.assertEqual(row["temperature"], 19)
+        self.assertFalse(row["low_battery"])
+        self.assertIsNone(row["battery"])
+        self.assertIsNone(row["signal"])
+
+    def test_sensor_view_prefers_sensor_info_over_zone_temperature(self) -> None:
+        state = AirTouchState()
+        state.system["group_count"] = 1
+        state.groups = {
+            0: {
+                "name": "Living",
+                "grouping": {"thermostat": 0, "zone_start": 0, "zone_count": 1},
+                "status": {"has_sensor": True, "temperature": 19},
+            },
+        }
+        state.sensors = {
+            0: {"kind": "rf", "sensor_name": "rf_sensor_0", "temperature": 20, "battery": 90, "signal": -70}
+        }
+
+        row = state.sensor_view()[0]
+
+        self.assertEqual(row["temperature"], 20)
+        self.assertEqual(row["battery"], 90)
+        self.assertEqual(row["signal"], -70)
+
     def test_sensor_view_marks_multiple_explicit_owners_ambiguous(self) -> None:
         state = AirTouchState()
         state.groups = {

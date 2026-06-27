@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.3 - 2026-06-28
+
+- Refresh listed sensor-info records after startup and keep resolved RF sensor rows populated with zone temperature while RF battery/signal telemetry is warming up.
+
 ## 0.3.2 - 2026-06-28
 
 - Resolve group-local RF sensor slots to concrete sensor addresses in `/api/state`, exposing one-to-one sensor owner fields and zone-side `sensor_id` metadata for Home Assistant device placement.

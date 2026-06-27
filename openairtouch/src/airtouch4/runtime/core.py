@@ -81,6 +81,7 @@ class AirTouchRuntime:
     address_assigned: bool = False
     detected_protocol: str | None = None
     protocol_mismatch: bool = False
+    sensor_info_requested: set[int] = field(default_factory=set)
 
     def __post_init__(self) -> None:
         if self.profile is None:
@@ -206,6 +207,7 @@ class AirTouchRuntime:
                 self._handle_detected_protocol(detected)
             self.state.apply_decoded(packet.command, decoded)
             self.state.last_command = packet.command
+            self._queue_sensor_info_requests(decoded)
             events.append(RuntimeEvent("rx", packet=packet, decoded=decoded, state_changed=True))
             if self.transactions is not None:
                 events.extend(
@@ -252,3 +254,23 @@ class AirTouchRuntime:
             self.boot_complete = False
             if self.transactions is not None:
                 self.transactions = None
+
+    def _queue_sensor_info_requests(self, decoded: dict) -> None:
+        if decoded.get("type") != "sensor_list":
+            return
+        addresses = decoded.get("sensor_addresses") or []
+        specs = []
+        for sensor in addresses:
+            if not isinstance(sensor, int) or sensor in self.sensor_info_requested:
+                continue
+            self.sensor_info_requested.add(sensor)
+            specs.append(TransactionSpec(
+                0x73,
+                bytes((sensor,)),
+                expected_commands=(0x73,),
+                name=f"sensor info 0x{sensor:02X}" if sensor >= 0x80 else f"sensor info {sensor}",
+                max_attempts=2,
+                timeout=2.0,
+            ))
+        if specs:
+            self.enqueue(specs)
