@@ -72,6 +72,17 @@ INDEX_HTML = """<!doctype html>
     }
     * { box-sizing: border-box; }
     body {
+      --shell-gap: clamp(18px, 1.6vw, 28px);
+      --shell-pad-right: clamp(16px, 1.5vw, 24px);
+      --sidebar-w: clamp(340px, 25vw, 405px);
+      --content-max: 1130px;
+      --header-h: clamp(56px, 7vh, 68px);
+      --hero-h: clamp(360px, 44vh, 440px);
+      --hero-chart-h: clamp(94px, 13vh, 126px);
+      --metric-gap: clamp(12px, 1vw, 16px);
+      --metric-h: calc((var(--hero-h) - var(--metric-gap)) / 2);
+      --zone-row-h: clamp(84px, 9vh, 98px);
+      --section-gap: clamp(12px, 1.2vw, 16px);
       margin: 0;
       min-height: 100vh;
       background:
@@ -80,10 +91,11 @@ INDEX_HTML = """<!doctype html>
       color: var(--ink);
       font: 14px/1.42 Inter, ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       display: grid;
-      grid-template-columns: minmax(320px, 405px) minmax(0, 1fr);
+      grid-template-columns: var(--sidebar-w) minmax(0, var(--content-max));
       grid-template-rows: auto 1fr;
-      gap: 14px 26px;
-      padding: 0 24px 24px 0;
+      gap: var(--section-gap) var(--shell-gap);
+      justify-content: center;
+      padding: 0 var(--shell-pad-right) 24px 0;
     }
     header {
       display: grid;
@@ -93,7 +105,7 @@ INDEX_HTML = """<!doctype html>
       grid-column: 2;
       margin: 24px 0 0;
       width: 100%;
-      min-height: 64px;
+      min-height: var(--header-h);
       padding: 0 0 10px;
       background: transparent;
       color: var(--header-ink);
@@ -145,6 +157,7 @@ INDEX_HTML = """<!doctype html>
       gap: 16px;
       grid-column: 2;
       width: 100%;
+      max-width: var(--content-max);
       margin: 0;
       padding: 0;
     }
@@ -567,12 +580,14 @@ INDEX_HTML = """<!doctype html>
     }
     .control-hero {
       display: grid;
-      grid-template-columns: minmax(460px, 1.35fr) repeat(2, minmax(190px, .62fr));
+      grid-template-columns: minmax(500px, 1.35fr) repeat(2, minmax(210px, .62fr));
       grid-template-areas:
         "controller zones indoor"
         "controller fault damper";
-      gap: 14px;
+      grid-template-rows: repeat(2, var(--metric-h));
+      gap: var(--metric-gap);
       align-items: stretch;
+      max-width: var(--content-max);
     }
     .hero-card {
       min-width: 0;
@@ -590,7 +605,8 @@ INDEX_HTML = """<!doctype html>
     }
     .hero-card.primary {
       grid-area: controller;
-      min-height: 410px;
+      height: var(--hero-h);
+      min-height: 0;
       padding: 24px;
       background:
         radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 13rem),
@@ -602,7 +618,8 @@ INDEX_HTML = """<!doctype html>
     .hero-card.warning { grid-area: fault; }
     .hero-card.damper-summary { grid-area: damper; }
     .hero-card.metric {
-      min-height: 182px;
+      height: var(--metric-h);
+      min-height: 0;
       align-content: center;
       padding: 22px;
     }
@@ -628,8 +645,8 @@ INDEX_HTML = """<!doctype html>
       grid-template-columns: minmax(170px, .85fr) minmax(170px, .65fr);
       gap: 28px;
       align-items: start;
-      margin-top: 14px;
-      padding-top: 16px;
+      margin-top: clamp(8px, 1.4vh, 14px);
+      padding-top: clamp(10px, 1.6vh, 16px);
       border-top: 1px solid color-mix(in srgb, var(--line) 58%, transparent);
     }
     .hero-readout-label {
@@ -660,7 +677,7 @@ INDEX_HTML = """<!doctype html>
     }
     .hero-chart {
       width: 100%;
-      height: 126px;
+      height: var(--hero-chart-h);
       margin-top: 8px;
       overflow: visible;
     }
@@ -727,7 +744,7 @@ INDEX_HTML = """<!doctype html>
       overflow-wrap: anywhere;
     }
     .hero-value {
-      font-size: clamp(38px, 6vw, 72px);
+      font-size: clamp(38px, 4.2vw, 72px);
       line-height: .98;
       font-weight: 330;
       letter-spacing: 0;
@@ -980,6 +997,7 @@ INDEX_HTML = """<!doctype html>
       display: grid;
       grid-template-columns: repeat(2, minmax(360px, 1fr));
       gap: 12px;
+      max-width: var(--content-max);
     }
     .zone-toolbar {
       display: flex;
@@ -995,7 +1013,7 @@ INDEX_HTML = """<!doctype html>
       gap: 8px;
     }
     .group-tile {
-      min-height: 86px;
+      min-height: var(--zone-row-h);
       border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
       border-radius: var(--radius-card);
       padding: 14px;
@@ -1840,8 +1858,11 @@ INDEX_HTML = """<!doctype html>
     }
     @media (max-width: 1220px) {
       body {
-        grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
-        gap: 12px 18px;
+        --sidebar-w: clamp(280px, 27vw, 320px);
+        --content-max: 100%;
+        --shell-gap: 18px;
+        --hero-h: clamp(390px, 48vh, 440px);
+        grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
       }
       .room-panel {
         padding: 30px 24px 22px;
@@ -1865,6 +1886,8 @@ INDEX_HTML = """<!doctype html>
     }
     @media (max-width: 1040px) {
       body {
+        --content-max: 100%;
+        --hero-h: clamp(340px, 46vh, 420px);
         display: block;
         padding: 0 12px 20px;
       }
@@ -1887,6 +1910,7 @@ INDEX_HTML = """<!doctype html>
       .split,
       .service-grid {
         grid-template-columns: 1fr;
+        max-width: none;
       }
       .control-hero {
         grid-template-areas:
@@ -1901,6 +1925,10 @@ INDEX_HTML = """<!doctype html>
       }
     }
     @media (max-width: 620px) {
+      body {
+        --hero-h: 360px;
+        --zone-row-h: 110px;
+      }
       header {
         grid-template-columns: 1fr;
         margin-top: 10px;
@@ -1979,7 +2007,7 @@ INDEX_HTML = """<!doctype html>
         grid-column: 1 / -1;
       }
       .hero-card.primary {
-        min-height: 360px;
+        min-height: var(--hero-h);
       }
       .hero-temp-split {
         grid-template-columns: 1fr;
@@ -1993,6 +2021,11 @@ INDEX_HTML = """<!doctype html>
       }
     }
     @media (max-height: 820px) and (min-width: 1041px) {
+      body {
+        --hero-h: clamp(340px, 42vh, 380px);
+        --hero-chart-h: clamp(78px, 11vh, 96px);
+        --zone-row-h: clamp(82px, 10vh, 92px);
+      }
       .room-panel {
         padding-top: 26px;
         padding-bottom: 18px;
@@ -2009,6 +2042,25 @@ INDEX_HTML = """<!doctype html>
       }
       .room-stats {
         gap: 8px;
+      }
+      .hero-card.primary {
+        padding: 20px;
+      }
+      .hero-card.metric {
+        padding: 18px;
+      }
+      .hero-value {
+        font-size: clamp(36px, 3.8vw, 58px);
+      }
+      .hero-value.small {
+        font-size: 30px;
+      }
+      .hero-mode-pill {
+        min-height: 36px;
+        padding: 8px 13px;
+      }
+      .hero-control-actions .primary-change {
+        min-height: 40px;
       }
     }
     @media (max-width: 380px) {
