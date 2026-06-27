@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
@@ -35,6 +36,20 @@ class MpcProposal:
     zone_power_fractions: dict[int, float] = field(default_factory=dict)
     projected_runtime_hours: float = 0.0
     zone_projected_runtime_hours: dict[int, float] = field(default_factory=dict)
+    runtime_forecast: RuntimeForecast | None = None
+
+
+@dataclass(frozen=True)
+class RuntimeForecast:
+    horizon_hours: int
+    step_minutes: float
+    runtime_minutes: float
+    runtime_fraction: float
+    zone_runtime_minutes: dict[int, float] = field(default_factory=dict)
+    zone_runtime_fraction: dict[int, float] = field(default_factory=dict)
+    action_windows: list[dict[str, Any]] = field(default_factory=list)
+    series: list[dict[str, Any]] = field(default_factory=list)
+    quality: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -747,6 +762,7 @@ class AdaptiveMpcEngine:
         inputs: MpcInputs,
         advisory: bool = False,
     ) -> MpcProposal | None:
+        solve_started = time.perf_counter()
         controlled: list[tuple[AdaptiveRoom, ZoneThermalModel, float]] = []
         for room in rooms:
             control_allowed = room.configured_control if advisory else room.control_enabled
@@ -779,7 +795,9 @@ class AdaptiveMpcEngine:
         zone_fractions: dict[int, float] = {}
         runtime_blocks: set[int] = set()
         zone_runtime_hours: dict[int, float] = {}
+        zone_plans: dict[int, MpcPlan] = {}
         self.forecasts = {room.id: [] for room, _model, _temperature in controlled}
+        optimizer_started = time.perf_counter()
         for room, model, temperature in controlled:
             plan = _optimize_plan(
                 model.ekf.model,
@@ -799,9 +817,28 @@ class AdaptiveMpcEngine:
             active_blocks = {index for index, action in enumerate(plan.actions) if action != MODE_IDLE}
             runtime_blocks.update(active_blocks)
             zone_runtime_hours[room.id] = round(len(active_blocks) * PLAN_DT_MINUTES / 60.0, 2)
+            zone_plans[room.id] = plan
             self.forecasts[room.id] = _forecast_points(plan, outdoor)
+        optimizer_duration_ms = (time.perf_counter() - optimizer_started) * 1000.0
         projected_runtime_hours = round(len(runtime_blocks) * PLAN_DT_MINUTES / 60.0, 2)
-        if not all(model.mpc_ready_for(cooling=cooling) for _room, model, _temp in controlled):
+        runtime_forecast = _runtime_forecast(
+            inputs=inputs,
+            cooling=cooling,
+            target=baseline_target,
+            confidence=confidence,
+            zone_plans=zone_plans,
+            outdoor=outdoor,
+            ready=all(model.mpc_ready_for(cooling=cooling) for _room, model, _temp in controlled),
+        )
+        if not runtime_forecast.quality.get("model_ready"):
+            _annotate_solve_diagnostics(
+                runtime_forecast,
+                started=solve_started,
+                optimizer_duration_ms=optimizer_duration_ms,
+                horizon_blocks=blocks,
+                zone_count=len(controlled),
+                input_forecast_points=len(inputs.outside_forecast),
+            )
             return MpcProposal(
                 target=baseline_target,
                 source="learning",
@@ -811,6 +848,7 @@ class AdaptiveMpcEngine:
                 zone_power_fractions=zone_fractions,
                 projected_runtime_hours=projected_runtime_hours,
                 zone_projected_runtime_hours=zone_runtime_hours,
+                runtime_forecast=runtime_forecast,
             )
         worst_by_block: list[float] = []
         for block in range(blocks):
@@ -825,6 +863,14 @@ class AdaptiveMpcEngine:
         elif not cooling and min(worst_by_block) >= baseline_target:
             target = baseline_target - 1
         hourly = [round(worst_by_block[min((hour + 1) * int(60 / PLAN_DT_MINUTES) - 1, len(worst_by_block) - 1)], 2) for hour in range(inputs.horizon_hours)]
+        _annotate_solve_diagnostics(
+            runtime_forecast,
+            started=solve_started,
+            optimizer_duration_ms=optimizer_duration_ms,
+            horizon_blocks=blocks,
+            zone_count=len(controlled),
+            input_forecast_points=len(inputs.outside_forecast),
+        )
         proposal = MpcProposal(
             target=target,
             source="mpc",
@@ -836,6 +882,7 @@ class AdaptiveMpcEngine:
             zone_power_fractions=zone_fractions,
             projected_runtime_hours=projected_runtime_hours,
             zone_projected_runtime_hours=zone_runtime_hours,
+            runtime_forecast=runtime_forecast,
         )
         self.last_plans[ac_id] = proposal
         return proposal
@@ -939,6 +986,7 @@ class AdaptiveMpcEngine:
                     },
                     "predicted_temperatures": plan.predicted_temperatures,
                     "reason": plan.reason,
+                    "runtime_forecast": _runtime_forecast_status(plan.runtime_forecast),
                 }
                 for ac_id, plan in sorted(self.last_plans.items())
             },
@@ -1046,6 +1094,144 @@ def _forecast_points(plan: MpcPlan, outdoor: list[float]) -> list[dict[str, Any]
             point["outdoor_temperature"] = round(outdoor_temperature, 2)
         points.append(point)
     return points
+
+
+def _runtime_forecast(
+    *,
+    inputs: MpcInputs,
+    cooling: bool,
+    target: int,
+    confidence: float,
+    zone_plans: dict[int, MpcPlan],
+    outdoor: list[float],
+    ready: bool,
+) -> RuntimeForecast:
+    blocks = max(1, inputs.horizon_hours * int(60 / PLAN_DT_MINUTES))
+    horizon_minutes = blocks * PLAN_DT_MINUTES
+    series: list[dict[str, Any]] = []
+    active_blocks: list[int] = []
+    zone_runtime_minutes: dict[int, float] = {}
+    zone_runtime_fraction: dict[int, float] = {}
+    for group_id, plan in zone_plans.items():
+        active_count = sum(1 for action in plan.actions[:blocks] if action != MODE_IDLE)
+        runtime_minutes = round(active_count * PLAN_DT_MINUTES, 1)
+        zone_runtime_minutes[group_id] = runtime_minutes
+        zone_runtime_fraction[group_id] = round(runtime_minutes / horizon_minutes, 3)
+    for block in range(blocks):
+        block_actions = [plan.actions[block] for plan in zone_plans.values() if len(plan.actions) > block]
+        action = _dominant_action(block_actions)
+        if action != MODE_IDLE:
+            active_blocks.append(block)
+        power_values = [plan.power_fractions[block] for plan in zone_plans.values() if len(plan.power_fractions) > block]
+        temperatures = [plan.temperatures[block + 1] for plan in zone_plans.values() if len(plan.temperatures) > block + 1]
+        average_temperature = sum(temperatures) / len(temperatures) if temperatures else None
+        control_temperature = (max(temperatures) if cooling else min(temperatures)) if temperatures else None
+        point: dict[str, Any] = {
+            "offset_minutes": int(round((block + 1) * PLAN_DT_MINUTES)),
+            "target": target,
+            "action": action,
+            "power_fraction": round(max(power_values) if power_values else 0.0, 3),
+        }
+        if block < len(outdoor):
+            point["outside_temperature"] = round(outdoor[block], 2)
+        if average_temperature is not None:
+            point["average_indoor_temperature"] = round(average_temperature, 2)
+        if control_temperature is not None:
+            point["control_temperature"] = round(control_temperature, 2)
+        series.append(point)
+    runtime_minutes = round(len(active_blocks) * PLAN_DT_MINUTES, 1)
+    return RuntimeForecast(
+        horizon_hours=inputs.horizon_hours,
+        step_minutes=PLAN_DT_MINUTES,
+        runtime_minutes=runtime_minutes,
+        runtime_fraction=round(runtime_minutes / horizon_minutes, 3),
+        zone_runtime_minutes=zone_runtime_minutes,
+        zone_runtime_fraction=zone_runtime_fraction,
+        action_windows=_runtime_windows(series),
+        series=series,
+        quality={
+            "status": "ok" if ready else "warming_up",
+            "model_ready": ready,
+            "confidence": confidence,
+            "input_quality": dict(inputs.input_quality),
+        },
+    )
+
+
+def _runtime_windows(series: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    windows: list[dict[str, Any]] = []
+    current: dict[str, Any] | None = None
+    powers: list[float] = []
+    for point in series:
+        action = point.get("action")
+        offset = int(point.get("offset_minutes") or 0)
+        if action == MODE_IDLE:
+            if current is not None:
+                current["avg_power_fraction"] = round(sum(powers) / len(powers), 3) if powers else 0.0
+                windows.append(current)
+                current = None
+                powers = []
+            continue
+        if current is None or current.get("action") != action:
+            if current is not None:
+                current["avg_power_fraction"] = round(sum(powers) / len(powers), 3) if powers else 0.0
+                windows.append(current)
+            current = {
+                "start_offset_minutes": max(0, offset - int(PLAN_DT_MINUTES)),
+                "end_offset_minutes": offset,
+                "action": action,
+            }
+            powers = []
+        else:
+            current["end_offset_minutes"] = offset
+        powers.append(float(point.get("power_fraction") or 0.0))
+    if current is not None:
+        current["avg_power_fraction"] = round(sum(powers) / len(powers), 3) if powers else 0.0
+        windows.append(current)
+    return windows
+
+
+def _annotate_solve_diagnostics(
+    forecast: RuntimeForecast,
+    *,
+    started: float,
+    optimizer_duration_ms: float,
+    horizon_blocks: int,
+    zone_count: int,
+    input_forecast_points: int,
+) -> None:
+    forecast.quality.update({
+        "solve_duration_ms": round((time.perf_counter() - started) * 1000.0, 3),
+        "optimizer_duration_ms": round(optimizer_duration_ms, 3),
+        "horizon_blocks": horizon_blocks,
+        "zone_count": zone_count,
+        "series_points": len(forecast.series),
+        "input_forecast_points": input_forecast_points,
+        "solver_status": "ok",
+    })
+
+
+def _runtime_forecast_status(forecast: RuntimeForecast | None) -> dict[str, Any] | None:
+    if forecast is None:
+        return None
+    return {
+        "horizon_hours": forecast.horizon_hours,
+        "step_minutes": forecast.step_minutes,
+        "runtime_minutes": forecast.runtime_minutes,
+        "runtime_hours": round(forecast.runtime_minutes / 60.0, 2),
+        "runtime_fraction": forecast.runtime_fraction,
+        "zone_runtime_minutes": {
+            str(group_id): minutes
+            for group_id, minutes in forecast.zone_runtime_minutes.items()
+        },
+        "zone_runtime_fraction": {
+            str(group_id): fraction
+            for group_id, fraction in forecast.zone_runtime_fraction.items()
+        },
+        "action_windows": forecast.action_windows,
+        "series": forecast.series,
+        "quality": forecast.quality,
+    }
 
 
 def _optimize_plan(

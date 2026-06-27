@@ -1235,6 +1235,30 @@ def _proposal_status(proposal: Any) -> dict[str, Any] | None:
             str(group_id): hours
             for group_id, hours in getattr(proposal, "zone_projected_runtime_hours", {}).items()
         },
+        "runtime_forecast": _runtime_forecast_status(getattr(proposal, "runtime_forecast", None)),
+    }
+
+
+def _runtime_forecast_status(forecast: Any) -> dict[str, Any] | None:
+    if forecast is None:
+        return None
+    return {
+        "horizon_hours": forecast.horizon_hours,
+        "step_minutes": forecast.step_minutes,
+        "runtime_minutes": forecast.runtime_minutes,
+        "runtime_hours": round(forecast.runtime_minutes / 60.0, 2),
+        "runtime_fraction": forecast.runtime_fraction,
+        "zone_runtime_minutes": {
+            str(group_id): minutes
+            for group_id, minutes in getattr(forecast, "zone_runtime_minutes", {}).items()
+        },
+        "zone_runtime_fraction": {
+            str(group_id): fraction
+            for group_id, fraction in getattr(forecast, "zone_runtime_fraction", {}).items()
+        },
+        "action_windows": list(getattr(forecast, "action_windows", [])),
+        "series": list(getattr(forecast, "series", [])),
+        "quality": dict(getattr(forecast, "quality", {})),
     }
 
 

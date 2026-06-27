@@ -596,9 +596,45 @@ class AdaptiveControllerTests(unittest.TestCase):
         )
 
         self.assertIsNotNone(proposal)
+        assert proposal is not None
+        self.assertIsNotNone(proposal.runtime_forecast)
+        assert proposal.runtime_forecast is not None
+        self.assertEqual(proposal.runtime_forecast.horizon_hours, 1)
+        self.assertEqual(proposal.runtime_forecast.step_minutes, 5.0)
+        self.assertEqual(len(proposal.runtime_forecast.series), 12)
+        self.assertEqual(proposal.runtime_forecast.series[0]["outside_temperature"], 31)
+        self.assertGreaterEqual(proposal.runtime_forecast.runtime_minutes, 0.0)
+        self.assertGreaterEqual(proposal.runtime_forecast.quality["solve_duration_ms"], 0.0)
+        self.assertGreaterEqual(proposal.runtime_forecast.quality["optimizer_duration_ms"], 0.0)
+        self.assertEqual(proposal.runtime_forecast.quality["horizon_blocks"], 12)
+        self.assertEqual(proposal.runtime_forecast.quality["zone_count"], 1)
+        self.assertEqual(proposal.runtime_forecast.quality["series_points"], 12)
+        self.assertEqual(proposal.runtime_forecast.quality["input_forecast_points"], 3)
+        self.assertEqual(proposal.runtime_forecast.quality["solver_status"], "ok")
         self.assertEqual(engine.forecasts[0][0]["outdoor_temperature"], 31)
         self.assertEqual(engine.forecasts[0][1]["outdoor_temperature"], 30)
         self.assertEqual(engine.forecasts[0][2]["outdoor_temperature"], 29)
+
+    def test_runtime_forecast_is_exposed_in_adaptive_status(self) -> None:
+        controller = AdaptiveController(AdaptiveConfig(mode="recommend", learning_mode="control", control_zones=(0,)))
+        controller._mpc.zone_models[0] = ready_model()
+
+        controller.evaluate(
+            runtime_state(ac_setpoint=22, zone_setpoint=22, zone_temperature=25),
+            integrations(31, forecast=[{"temperature": 31}, {"temperature": 30}]),
+            now=1.0,
+        )
+
+        runtime = controller.status()["evaluations"][0]["mpc"]["runtime_forecast"]
+        self.assertEqual(runtime["horizon_hours"], 6)
+        self.assertEqual(runtime["step_minutes"], 5.0)
+        self.assertIn("runtime_hours", runtime)
+        self.assertIn("action_windows", runtime)
+        self.assertEqual(len(runtime["series"]), 72)
+        self.assertIn("average_indoor_temperature", runtime["series"][0])
+        self.assertEqual(runtime["quality"]["status"], "ok")
+        self.assertGreaterEqual(runtime["quality"]["solve_duration_ms"], 0.0)
+        self.assertEqual(runtime["quality"]["horizon_blocks"], 72)
 
     def test_adaptive_mode_uses_fahrenheit_weather_source(self) -> None:
         controller = AdaptiveController(AdaptiveConfig(mode="adaptive", command_cooldown=1, control_zones=(0,)))
