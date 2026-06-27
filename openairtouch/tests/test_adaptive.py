@@ -4,7 +4,8 @@ import unittest
 from datetime import datetime, timedelta, timezone
 
 from airtouch4.service.adaptive import AdaptiveConfig, AdaptiveController
-from airtouch4.service.adaptive_mpc import ZoneThermalModel
+from airtouch4.service.adaptive_model import AdaptiveRoom
+from airtouch4.service.adaptive_mpc import AdaptiveMpcEngine, MpcInputs, ZoneThermalModel
 
 
 def ready_model() -> ZoneThermalModel:
@@ -562,6 +563,42 @@ class AdaptiveControllerTests(unittest.TestCase):
         self.assertIn("offset_minutes", forecast[0])
         self.assertIn("temperature", forecast[0])
         self.assertIn("outdoor_temperature", forecast[0])
+
+    def test_mpc_proposal_accepts_separated_forecast_inputs(self) -> None:
+        engine = AdaptiveMpcEngine()
+        engine.zone_models[0] = ready_model()
+        room = AdaptiveRoom(
+            id=0,
+            name="Zone 1",
+            ac_id=0,
+            temperature=25,
+            setpoint=24,
+            active=True,
+            learn=True,
+            configured_control=True,
+            control_enabled=True,
+        )
+
+        proposal = engine.propose(
+            ac_id=0,
+            rooms=(room,),
+            baseline_target=24,
+            cooling=True,
+            inputs=MpcInputs(
+                horizon_hours=1,
+                outside_temperature=31,
+                outside_forecast=(31, 30, 29),
+                outside_forecast_step_minutes=5,
+                humidity=65,
+                q_solar=0.4,
+                input_quality={"forecast": {"status": "ok", "used_for_control": True}},
+            ),
+        )
+
+        self.assertIsNotNone(proposal)
+        self.assertEqual(engine.forecasts[0][0]["outdoor_temperature"], 31)
+        self.assertEqual(engine.forecasts[0][1]["outdoor_temperature"], 30)
+        self.assertEqual(engine.forecasts[0][2]["outdoor_temperature"], 29)
 
     def test_adaptive_mode_uses_fahrenheit_weather_source(self) -> None:
         controller = AdaptiveController(AdaptiveConfig(mode="adaptive", command_cooldown=1, control_zones=(0,)))

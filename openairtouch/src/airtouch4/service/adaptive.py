@@ -11,7 +11,7 @@ from typing import Any
 from ..session.queue import TransactionSpec
 from .commands import CommandRequestError, build_transaction
 from .adaptive_airtouch import translate_airtouch_snapshot
-from .adaptive_mpc import AdaptiveMpcEngine
+from .adaptive_mpc import AdaptiveMpcEngine, MpcInputs
 from .adaptive_model import AdaptiveDevice
 
 
@@ -575,13 +575,36 @@ class AdaptiveController:
             rooms=device.rooms,
             baseline_target=baseline_target,
             cooling=cooling,
+            inputs=self._mpc_inputs(outside, weather, solar, climate),
+            advisory=advisory,
+        )
+
+    def _mpc_inputs(
+        self,
+        outside: float,
+        weather: WeatherSignal,
+        solar: SolarSignal,
+        climate: ClimateSignal,
+    ) -> MpcInputs:
+        return MpcInputs(
             horizon_hours=self.config.mpc_horizon_hours,
             outside_temperature=outside,
             outside_forecast=_forecast_values_for_control(weather),
             outside_forecast_step_minutes=_forecast_step_for_control(weather),
             humidity=climate.humidity,
             q_solar=solar.q_solar,
-            advisory=advisory,
+            input_quality={
+                "forecast": weather.forecast_quality or {},
+                "solar": {
+                    "source": solar.source,
+                    "error": solar.error,
+                    "available": solar.source != "none",
+                },
+                "humidity": {
+                    "source": climate.humidity_source,
+                    "available": climate.humidity is not None,
+                },
+            },
         )
 
     def _target_setpoint(self, outside: float, cooling: bool) -> int:

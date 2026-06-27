@@ -38,6 +38,17 @@ class MpcProposal:
 
 
 @dataclass(frozen=True)
+class MpcInputs:
+    horizon_hours: int
+    outside_temperature: float | None = None
+    outside_forecast: tuple[float, ...] = ()
+    outside_forecast_step_minutes: float = 60.0
+    humidity: float | None = None
+    q_solar: float = 0.0
+    input_quality: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class MpcPlan:
     actions: list[str]
     temperatures: list[float]
@@ -733,12 +744,7 @@ class AdaptiveMpcEngine:
         rooms: tuple[AdaptiveRoom, ...] | list[AdaptiveRoom],
         baseline_target: int,
         cooling: bool,
-        horizon_hours: int,
-        outside_temperature: float | None = None,
-        outside_forecast: list[float] | tuple[float, ...] = (),
-        outside_forecast_step_minutes: float = 60.0,
-        humidity: float | None = None,
-        q_solar: float = 0.0,
+        inputs: MpcInputs,
         advisory: bool = False,
     ) -> MpcProposal | None:
         controlled: list[tuple[AdaptiveRoom, ZoneThermalModel, float]] = []
@@ -757,9 +763,14 @@ class AdaptiveMpcEngine:
 
         confidences = [model.confidence for _room, model, _temp in controlled]
         confidence = min(confidences)
-        blocks = max(1, horizon_hours * int(60 / PLAN_DT_MINUTES))
-        fallback_outdoor = outside_temperature if outside_temperature is not None else controlled[0][2]
-        outdoor = _expand_forecast(outside_forecast, blocks, fallback_outdoor, step_minutes=outside_forecast_step_minutes)
+        blocks = max(1, inputs.horizon_hours * int(60 / PLAN_DT_MINUTES))
+        fallback_outdoor = inputs.outside_temperature if inputs.outside_temperature is not None else controlled[0][2]
+        outdoor = _expand_forecast(
+            inputs.outside_forecast,
+            blocks,
+            fallback_outdoor,
+            step_minutes=inputs.outside_forecast_step_minutes,
+        )
         heat_targets = [baseline_target] * blocks
         cool_targets = [baseline_target] * blocks
         predictions: list[list[float]] = []
@@ -778,8 +789,8 @@ class AdaptiveMpcEngine:
                 cool_targets,
                 can_heat=not cooling,
                 can_cool=cooling,
-                humidity=humidity,
-                q_solar=q_solar,
+                humidity=inputs.humidity,
+                q_solar=inputs.q_solar,
             )
             predictions.append(plan.temperatures[1:])
             actions.append(plan.current_action)
@@ -813,7 +824,7 @@ class AdaptiveMpcEngine:
             target = baseline_target + 1
         elif not cooling and min(worst_by_block) >= baseline_target:
             target = baseline_target - 1
-        hourly = [round(worst_by_block[min((hour + 1) * int(60 / PLAN_DT_MINUTES) - 1, len(worst_by_block) - 1)], 2) for hour in range(horizon_hours)]
+        hourly = [round(worst_by_block[min((hour + 1) * int(60 / PLAN_DT_MINUTES) - 1, len(worst_by_block) - 1)], 2) for hour in range(inputs.horizon_hours)]
         proposal = MpcProposal(
             target=target,
             source="mpc",
