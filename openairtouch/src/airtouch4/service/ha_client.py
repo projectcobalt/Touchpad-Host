@@ -26,6 +26,8 @@ class HomeAssistantApiConfig:
 class HomeAssistantApiClient:
     def __init__(self, config: HomeAssistantApiConfig) -> None:
         self.config = config
+        self._time_zone: str | None = None
+        self._time_zone_checked = False
 
     def weather_snapshot(self) -> dict[str, Any] | None:
         entity_id = self.config.weather_entity.strip()
@@ -147,12 +149,38 @@ class HomeAssistantApiClient:
         now_entry = _now_forecast_entry(current_weather)
         if now_entry is not None:
             forecast.insert(0, now_entry)
-        return {
+        result = {
             "entity_id": entity_id,
             "type": "hourly",
             "forecast": forecast,
             "prepended_current": now_entry is not None,
         }
+        time_zone = self.home_assistant_timezone()
+        if time_zone:
+            result["time_zone"] = time_zone
+        return result
+
+    def home_assistant_timezone(self) -> str | None:
+        if self._time_zone_checked:
+            return self._time_zone
+        self._time_zone_checked = True
+        token = os.environ.get("SUPERVISOR_TOKEN", "")
+        if not token:
+            return None
+        url = "http://supervisor/core/api/config"
+        request = Request(url, headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        })
+        try:
+            with urlopen(request, timeout=self.config.timeout) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except (HTTPError, URLError, TimeoutError):
+            return None
+        time_zone = payload.get("time_zone")
+        if isinstance(time_zone, str) and time_zone.strip():
+            self._time_zone = time_zone.strip()
+        return self._time_zone
 
     def read_state(self, entity_id: str) -> dict[str, Any]:
         token = os.environ.get("SUPERVISOR_TOKEN", "")
@@ -204,7 +232,7 @@ def _now_forecast_entry(current_weather: dict[str, Any] | None) -> dict[str, Any
     if temperature is None:
         return None
     entry: dict[str, Any] = {
-        "datetime": datetime.now().replace(minute=0, second=0, microsecond=0).isoformat(),
+        "datetime": datetime.now().astimezone().replace(microsecond=0).isoformat(),
         "temperature": temperature,
         "condition": current_weather.get("state"),
         "source": "current_weather",

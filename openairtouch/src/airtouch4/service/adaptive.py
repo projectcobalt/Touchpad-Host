@@ -5,8 +5,9 @@ from __future__ import annotations
 import math
 import time
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import datetime, timezone, tzinfo
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from ..session.queue import TransactionSpec
 from .commands import CommandRequestError, build_transaction
@@ -828,9 +829,10 @@ def _strategy_uses_mpc(control_strategy: str) -> bool:
 
 
 def _weather_signal(weather: dict[str, Any], integrations: dict[str, Any], *, horizon_hours: int) -> WeatherSignal:
-    forecast = _forecast_frame(weather, integrations, horizon_hours=horizon_hours)
+    outside_temperature = _weather_temperature_c(weather)
+    forecast = _forecast_frame(weather, integrations, horizon_hours=horizon_hours, outside_temperature=outside_temperature)
     return WeatherSignal(
-        outside_temperature=_weather_temperature_c(weather),
+        outside_temperature=outside_temperature,
         forecast_temperatures=forecast["temperatures"],
         forecast_control_temperatures=forecast["control_temperatures"],
         forecast_step_minutes=forecast["step_minutes"],
@@ -863,16 +865,26 @@ def _temperature_to_c(value: float, unit: Any) -> float:
     return value
 
 
-def _forecast_frame(weather: dict[str, Any], integrations: dict[str, Any], *, horizon_hours: int) -> dict[str, Any]:
+def _forecast_frame(weather: dict[str, Any], integrations: dict[str, Any], *, horizon_hours: int, outside_temperature: float | None) -> dict[str, Any]:
     sources = _forecast_sources(weather, integrations)
     default_unit = weather.get("temperature_unit") or weather.get("unit_of_measurement") or "C"
+    time_zone_name = _forecast_time_zone(integrations)
+    naive_time_zone = _timezone_for_name(time_zone_name)
     timed_points: list[tuple[datetime, float]] = []
     untimed: list[float] = []
     entry_count = 0
+    dropped_current_weather_anchor = False
+    duplicate_timestamps = False
+    localized_naive_datetimes = False
     for source in sources:
-        for entry in _forecast_entries(source):
+        entries, source_quality = _normalized_forecast_entries(source, naive_time_zone=naive_time_zone)
+        dropped_current_weather_anchor = dropped_current_weather_anchor or source_quality["dropped_current_weather_anchor"]
+        duplicate_timestamps = duplicate_timestamps or source_quality["duplicate_timestamps"]
+        localized_naive_datetimes = localized_naive_datetimes or source_quality["localized_naive_datetimes"]
+        for entry in entries:
             entry_count += 1
-            ts, value = _forecast_entry_time_temperature(entry, default_unit)
+            ts, value, was_naive = _forecast_entry_time_temperature(entry, default_unit, naive_time_zone=naive_time_zone)
+            localized_naive_datetimes = localized_naive_datetimes or was_naive
             if value is None:
                 continue
             if ts is None:
@@ -881,7 +893,16 @@ def _forecast_frame(weather: dict[str, Any], integrations: dict[str, Any], *, ho
                 timed_points.append((ts, value))
 
     if timed_points:
-        return _timed_forecast_frame(timed_points, horizon_hours=horizon_hours, entry_count=entry_count)
+        return _timed_forecast_frame(
+            timed_points,
+            horizon_hours=horizon_hours,
+            entry_count=entry_count,
+            outside_temperature=outside_temperature,
+            dropped_current_weather_anchor=dropped_current_weather_anchor,
+            duplicate_timestamps=duplicate_timestamps,
+            localized_naive_datetimes=localized_naive_datetimes,
+            time_zone_name=time_zone_name,
+        )
     if untimed:
         values = tuple(untimed[:12])
         return {
@@ -923,6 +944,22 @@ def _forecast_sources(weather: dict[str, Any], integrations: dict[str, Any]) -> 
     return sources
 
 
+def _forecast_time_zone(integrations: dict[str, Any]) -> str | None:
+    if not integrations:
+        return None
+    forecast_state = (integrations.get("forecast") or {}).get("state")
+    if isinstance(forecast_state, dict):
+        value = forecast_state.get("time_zone") or forecast_state.get("timezone")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    ha_state = (integrations.get("homeassistant") or {}).get("state")
+    if isinstance(ha_state, dict):
+        value = ha_state.get("time_zone") or ha_state.get("timezone")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
 def _forecast_entries(source: Any) -> list[Any]:
     if not source:
         return []
@@ -938,10 +975,51 @@ def _forecast_entries(source: Any) -> list[Any]:
     return [{"temperature": source}]
 
 
-def _forecast_entry_time_temperature(entry: Any, default_unit: Any) -> tuple[datetime | None, float | None]:
+def _normalized_forecast_entries(source: Any, *, naive_time_zone: tzinfo) -> tuple[list[Any], dict[str, bool]]:
+    entries = _forecast_entries(source)
+    quality = {
+        "dropped_current_weather_anchor": False,
+        "duplicate_timestamps": False,
+        "localized_naive_datetimes": False,
+    }
+    if not entries:
+        return entries, quality
+    seen: set[datetime] = set()
+    duplicate_timestamps: set[datetime] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        ts, was_naive = _forecast_entry_datetime_with_metadata(entry, naive_time_zone=naive_time_zone)
+        quality["localized_naive_datetimes"] = quality["localized_naive_datetimes"] or was_naive
+        if ts is None:
+            continue
+        if ts in seen:
+            duplicate_timestamps.add(ts)
+        seen.add(ts)
+    quality["duplicate_timestamps"] = bool(duplicate_timestamps)
+    first = entries[0]
+    if (
+        isinstance(first, dict)
+        and str(first.get("source") or "").lower() == "current_weather"
+    ):
+        first_ts, first_was_naive = _forecast_entry_datetime_with_metadata(first, naive_time_zone=naive_time_zone)
+        quality["localized_naive_datetimes"] = quality["localized_naive_datetimes"] or first_was_naive
+        following_timestamps = {
+            _forecast_entry_datetime(entry, naive_time_zone=naive_time_zone)
+            for entry in entries[1:]
+            if isinstance(entry, dict)
+        }
+        following_timestamps.discard(None)
+        if first_ts is not None and following_timestamps:
+            quality["dropped_current_weather_anchor"] = True
+            return entries[1:], quality
+    return entries, quality
+
+
+def _forecast_entry_time_temperature(entry: Any, default_unit: Any, *, naive_time_zone: tzinfo) -> tuple[datetime | None, float | None, bool]:
     if not isinstance(entry, dict):
         value = _number(entry)
-        return None, value
+        return None, value, False
     value = _number(
         entry.get("temperature")
         if entry.get("temperature") is not None
@@ -949,52 +1027,74 @@ def _forecast_entry_time_temperature(entry: Any, default_unit: Any) -> tuple[dat
         if entry.get("native_temperature") is not None
         else entry.get("templow")
     )
+    ts, was_naive = _forecast_entry_datetime_with_metadata(entry, naive_time_zone=naive_time_zone)
     if value is None:
-        return _forecast_entry_datetime(entry), None
+        return ts, None, was_naive
     unit = entry.get("temperature_unit") or entry.get("native_temperature_unit") or default_unit
-    return _forecast_entry_datetime(entry), _temperature_to_c(value, unit)
+    return ts, _temperature_to_c(value, unit), was_naive
 
 
-def _forecast_entry_datetime(entry: dict[str, Any]) -> datetime | None:
+def _forecast_entry_datetime(entry: dict[str, Any], *, naive_time_zone: tzinfo | None = None) -> datetime | None:
+    parsed, _was_naive = _forecast_entry_datetime_with_metadata(entry, naive_time_zone=naive_time_zone or _local_timezone())
+    return parsed
+
+
+def _forecast_entry_datetime_with_metadata(entry: dict[str, Any], *, naive_time_zone: tzinfo) -> tuple[datetime | None, bool]:
     for key in ("datetime", "time", "timestamp", "start_time", "period_start"):
-        parsed = _parse_datetime(entry.get(key))
+        parsed, was_naive = _parse_datetime(entry.get(key), naive_time_zone=naive_time_zone)
         if parsed is not None:
-            return parsed
-    return None
+            return parsed, was_naive
+    return None, False
 
 
-def _parse_datetime(value: Any) -> datetime | None:
+def _parse_datetime(value: Any, *, naive_time_zone: tzinfo | None = None) -> tuple[datetime | None, bool]:
     if isinstance(value, datetime):
         dt = value
     elif isinstance(value, str):
         text = value.strip()
         if not text:
-            return None
+            return None, False
         if text.endswith("Z"):
             text = f"{text[:-1]}+00:00"
         try:
             dt = datetime.fromisoformat(text)
         except ValueError:
-            return None
+            return None, False
     else:
-        return None
+        return None, False
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        dt = dt.replace(tzinfo=naive_time_zone or _local_timezone())
+        return dt.astimezone(timezone.utc), True
+    return dt.astimezone(timezone.utc), False
 
 
-def _timed_forecast_frame(points: list[tuple[datetime, float]], *, horizon_hours: int, entry_count: int) -> dict[str, Any]:
+def _timed_forecast_frame(
+    points: list[tuple[datetime, float]],
+    *,
+    horizon_hours: int,
+    entry_count: int,
+    outside_temperature: float | None,
+    dropped_current_weather_anchor: bool,
+    duplicate_timestamps: bool,
+    localized_naive_datetimes: bool,
+    time_zone_name: str | None,
+) -> dict[str, Any]:
     ordered = sorted(points, key=lambda item: item[0])
     deduped: dict[datetime, float] = {}
     for ts, value in ordered:
         deduped[ts] = value
     ordered = sorted(deduped.items(), key=lambda item: item[0])
-    now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    now = datetime.now(timezone.utc).replace(microsecond=0)
     horizon_blocks = max(1, int(horizon_hours * 60 / 5))
     start = _floor_to_step(now, 5)
-    end = start.timestamp() + ((horizon_blocks - 1) * 5 * 60)
+    end = start.timestamp() + (horizon_blocks * 5 * 60)
     first_ts = ordered[0][0]
     last_ts = ordered[-1][0]
+    control_points = list(ordered)
+    current_anchor = outside_temperature is not None
+    if current_anchor:
+        control_points.insert(0, (now, float(outside_temperature)))
+        control_points = sorted(control_points, key=lambda item: item[0])
     base_quality = {
         "timed": True,
         "entry_count": entry_count,
@@ -1003,6 +1103,13 @@ def _timed_forecast_frame(points: list[tuple[datetime, float]], *, horizon_hours
         "first_datetime": first_ts.isoformat(),
         "last_datetime": last_ts.isoformat(),
         "horizon_blocks": horizon_blocks,
+        "start_datetime": start.isoformat(),
+        "anchor_datetime": now.isoformat() if current_anchor else None,
+        "current_anchor": current_anchor,
+        "dropped_current_weather_anchor": dropped_current_weather_anchor,
+        "duplicate_timestamps": duplicate_timestamps,
+        "localized_naive_datetimes": localized_naive_datetimes,
+        "time_zone": time_zone_name,
     }
     if last_ts.timestamp() < start.timestamp() - (30 * 60):
         return {
@@ -1018,7 +1125,7 @@ def _timed_forecast_frame(points: list[tuple[datetime, float]], *, horizon_hours
             "step_minutes": 5.0,
             "quality": {**base_quality, "status": "out_of_horizon", "used_for_control": False},
         }
-    blocks, sparse = _forecast_blocks(ordered, start=start, horizon_blocks=horizon_blocks)
+    blocks, sparse = _forecast_blocks(control_points, start=start, horizon_blocks=horizon_blocks)
     sampled = tuple(value for _ts, value in ordered[:12])
     return {
         "temperatures": sampled,
@@ -1034,7 +1141,7 @@ def _forecast_blocks(points: list[tuple[datetime, float]], *, start: datetime, h
     point_seconds = [(ts.timestamp(), value) for ts, value in points]
     index = 0
     for block in range(horizon_blocks):
-        ts = start.timestamp() + (block * 5 * 60)
+        ts = start.timestamp() + ((block + 1) * 5 * 60)
         while index + 1 < len(point_seconds) and point_seconds[index + 1][0] <= ts:
             index += 1
         if ts <= point_seconds[0][0]:
@@ -1062,6 +1169,20 @@ def _floor_to_step(dt: datetime, minutes: int) -> datetime:
     step_seconds = minutes * 60
     floored = int(dt.timestamp() // step_seconds) * step_seconds
     return datetime.fromtimestamp(floored, timezone.utc)
+
+
+def _local_timezone() -> tzinfo:
+    local = datetime.now().astimezone().tzinfo
+    return local or timezone.utc
+
+
+def _timezone_for_name(name: str | None) -> tzinfo:
+    if not name:
+        return _local_timezone()
+    try:
+        return ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        return _local_timezone()
 
 
 def _solar_signal(weather: dict[str, Any], integrations: dict[str, Any]) -> SolarSignal:

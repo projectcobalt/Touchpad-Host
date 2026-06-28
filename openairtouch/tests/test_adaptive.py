@@ -101,6 +101,7 @@ def integrations(
     *,
     humidity: float | None = None,
     forecast: list[dict] | None = None,
+    forecast_time_zone: str | None = None,
     indoor_temp: float | None = None,
     indoor_humidity: float | None = None,
     solar: dict | None = None,
@@ -111,8 +112,13 @@ def integrations(
     if humidity is not None:
         weather["humidity"] = humidity
     if forecast is not None:
-        weather["forecast"] = forecast
+        if forecast_time_zone is None:
+            weather["forecast"] = forecast
+        else:
+            result_forecast = {"forecast": forecast, "time_zone": forecast_time_zone}
     result = {"weather": {"state": weather}}
+    if forecast is not None and forecast_time_zone is not None:
+        result["forecast"] = {"state": result_forecast}
     indoor = {}
     if indoor_temp is not None:
         indoor["temperature"] = indoor_temp
@@ -745,6 +751,67 @@ class AdaptiveControllerTests(unittest.TestCase):
         self.assertEqual(status["forecast_temperatures"][:2], [24, 25])
         self.assertEqual(status["forecast_quality"]["status"], "ok")
         self.assertTrue(status["forecast_quality"]["timed"])
+
+    def test_naive_ha_forecast_uses_local_time_and_drops_current_weather_anchor(self) -> None:
+        controller = AdaptiveController(AdaptiveConfig(mode="adaptive", command_cooldown=1, control_zones=(0,)))
+        local_hour = datetime.now().astimezone().replace(minute=0, second=0, microsecond=0)
+        current_weather_anchor = datetime.now().astimezone().replace(microsecond=0)
+
+        controller.evaluate(
+            runtime_state(ac_setpoint=22, zone_setpoint=22),
+            integrations(
+                19.3,
+                forecast=[
+                    {
+                        "datetime": current_weather_anchor.isoformat(),
+                        "temperature": 19.3,
+                        "source": "current_weather",
+                    },
+                    {
+                        "datetime": local_hour.replace(tzinfo=None).isoformat(),
+                        "temperature": 20.0,
+                    },
+                    {
+                        "datetime": (local_hour + timedelta(hours=1)).replace(tzinfo=None).isoformat(),
+                        "temperature": 21.0,
+                    },
+                    {
+                        "datetime": (local_hour + timedelta(hours=2)).replace(tzinfo=None).isoformat(),
+                        "temperature": 21.0,
+                    },
+                    {
+                        "datetime": (local_hour + timedelta(hours=3)).replace(tzinfo=None).isoformat(),
+                        "temperature": 22.0,
+                    },
+                    {
+                        "datetime": (local_hour + timedelta(hours=4)).replace(tzinfo=None).isoformat(),
+                        "temperature": 22.0,
+                    },
+                    {
+                        "datetime": (local_hour + timedelta(hours=5)).replace(tzinfo=None).isoformat(),
+                        "temperature": 21.0,
+                    },
+                    {
+                        "datetime": (local_hour + timedelta(hours=6)).replace(tzinfo=None).isoformat(),
+                        "temperature": 20.0,
+                    },
+                ],
+                forecast_time_zone="Australia/Brisbane",
+            ),
+            now=1.0,
+        )
+
+        status = controller.status()
+        quality = status["forecast_quality"]
+        self.assertEqual(status["forecast_temperatures"][:3], [20.0, 21.0, 21.0])
+        self.assertEqual(quality["status"], "ok")
+        self.assertTrue(quality["used_for_control"])
+        self.assertTrue(quality["localized_naive_datetimes"])
+        self.assertFalse(quality["duplicate_timestamps"])
+        self.assertTrue(quality["dropped_current_weather_anchor"])
+        self.assertTrue(quality["current_anchor"])
+        self.assertEqual(quality["time_zone"], "Australia/Brisbane")
+        self.assertLess(quality["anchor_datetime"], quality["last_datetime"])
 
     def test_stale_timestamped_forecast_is_not_used_for_auto_off_gate(self) -> None:
         controller = AdaptiveController(AdaptiveConfig(mode="auto_off", command_cooldown=1))
