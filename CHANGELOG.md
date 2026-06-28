@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0 - 2026-06-28
+
+- Fix Home Assistant forecast ingestion to treat naive forecast timestamps as HA-local time, preserve the HA timezone on forecast snapshots, and use the current outside temperature as a live interpolation anchor.
+- Drop the bridge-prepended current-weather row from forecast samples when real timestamped forecast entries are present, avoiding duplicate/current-hour forecast distortion in MPC control inputs.
+
 ## 0.3.3 - 2026-06-28
 
 - Refresh listed sensor-info records after startup and keep resolved RF sensor rows populated with zone temperature while RF battery/signal telemetry is warming up.
