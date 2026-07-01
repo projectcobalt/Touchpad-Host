@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.2 - 2026-07-02
+
+- Add a zone tile control to resume sensor temperature control from damper mode without turning the zone off and back on.
+
 ## 0.6.1 - 2026-07-02
 
 - Keep saved spill-zone configuration separate from live spill-open status in the service UI and clear stale spill configuration flags when new spill data arrives.

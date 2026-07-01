@@ -69,6 +69,11 @@ class ServiceUiTests(unittest.TestCase):
         self.assertIn('const spillState = status.spill_on ? "Open" : (configured ? "Configured" : "Live");', INDEX_HTML)
         self.assertNotIn("const configured = group.spill_configured || status.spill_on;", INDEX_HTML)
 
+    def test_damper_mode_sensor_zone_can_resume_temp_control(self) -> None:
+        self.assertIn("const resumeTempControlButton = !sensorControl && status.has_sensor === true", INDEX_HTML)
+        self.assertIn('data-action="group-setpoint"', INDEX_HTML)
+        self.assertIn('>Temp</button>', INDEX_HTML)
+
 
 if __name__ == "__main__":
     unittest.main()

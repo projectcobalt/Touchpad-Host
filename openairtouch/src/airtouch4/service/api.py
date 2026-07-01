@@ -32,7 +32,7 @@ def create_app(controller: RuntimeController):
         finally:
             controller.stop()
 
-    app = FastAPI(title="OpenAirTouch", version="0.6.1", lifespan=lifespan)
+    app = FastAPI(title="OpenAirTouch", version="0.6.2", lifespan=lifespan)
 
     @app.get("/api/health")
     def health() -> dict[str, Any]:

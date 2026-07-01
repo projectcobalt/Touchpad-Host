@@ -2675,13 +2675,17 @@ INDEX_HTML = """<!doctype html>
       const slider = sensorControl
         ? ""
         : `<input class="zone-slider" type="range" min="0" max="100" step="5" value="${percentage === null ? 0 : percentage}" data-action="group-percentage" data-group="${escapeHtml(id)}" ${pending || percentage === null || !isOn ? "disabled" : ""}>`;
+      const resumeTempControlButton = !sensorControl && status.has_sensor === true
+        ? `<button type="button" class="secondary" data-action="group-setpoint" data-group="${escapeHtml(id)}" data-setpoint="${escapeHtml(setpoint ?? "")}" ${pending || setpoint === null || !isOn ? "disabled" : ""}>Temp</button>`
+        : "";
       const valueButtons = sensorControl
         ? `
           <button type="button" class="secondary" data-action="group-setpoint" data-group="${escapeHtml(id)}" data-setpoint="${nextSetpointDown}" ${pending || setpoint === null || !isOn || atMin ? "disabled" : ""}>Set -</button>
           <button type="button" class="secondary" data-action="group-setpoint" data-group="${escapeHtml(id)}" data-setpoint="${nextSetpointUp}" ${pending || setpoint === null || !isOn || atMax ? "disabled" : ""}>Set +</button>`
         : `
           <button type="button" class="secondary" data-action="group-percentage" data-group="${escapeHtml(id)}" data-percentage="${percentage === null ? "" : Math.max(0, percentage - 10)}" ${pending || percentage === null || !isOn ? "disabled" : ""}>-10%</button>
-          <button type="button" class="secondary" data-action="group-percentage" data-group="${escapeHtml(id)}" data-percentage="${percentage === null ? "" : Math.min(100, percentage + 10)}" ${pending || percentage === null || !isOn ? "disabled" : ""}>+10%</button>`;
+          <button type="button" class="secondary" data-action="group-percentage" data-group="${escapeHtml(id)}" data-percentage="${percentage === null ? "" : Math.min(100, percentage + 10)}" ${pending || percentage === null || !isOn ? "disabled" : ""}>+10%</button>
+          ${resumeTempControlButton}`;
       return `
         <article class="${classes.join(" ")}">
           <div class="group-head">
