@@ -32,7 +32,7 @@ class FakeController:
     def snapshot(self) -> dict[str, Any]:
         return {
             "controller": {"status": "running", "config": {"transport": "tcp_serial"}},
-            "runtime": {"runtime": {"boot_complete": True}, "state": {"acs": {}, "groups": {}}},
+            "runtime": {"runtime": {"connected": True, "boot_complete": True}, "state": {"acs": {}, "groups": {}}},
             "integrations": {},
         }
 

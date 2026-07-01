@@ -18,8 +18,14 @@ class HomeAssistantApiConfig:
     forecast_weather_entity: str = ""
     indoor_temperature_entity: str = ""
     indoor_humidity_entity: str = ""
+    indoor_co2_entity: str = ""
     solar_irradiance_entity: str = ""
     cloud_cover_entity: str = ""
+    ac_power_entity: str = ""
+    ac_running_entity: str = ""
+    ac_frequency_entity: str = ""
+    ac_return_air_temp_entity: str = ""
+    ac_supply_air_temp_entity: str = ""
     timeout: float = 3.0
 
 
@@ -53,16 +59,20 @@ class HomeAssistantApiClient:
     def indoor_snapshot(self) -> dict[str, Any] | None:
         temperature_entity = self.config.indoor_temperature_entity.strip()
         humidity_entity = self.config.indoor_humidity_entity.strip()
-        if not temperature_entity and not humidity_entity:
+        co2_entity = self.config.indoor_co2_entity.strip()
+        if not temperature_entity and not humidity_entity and not co2_entity:
             return None
 
         snapshot: dict[str, Any] = {
             "temperature_entity_id": temperature_entity,
             "humidity_entity_id": humidity_entity,
+            "co2_entity_id": co2_entity,
             "temperature": None,
             "humidity": None,
+            "co2_ppm": None,
             "temperature_unit": "C",
             "humidity_unit": "%",
+            "co2_unit": "ppm",
         }
         if temperature_entity:
             state = self.read_state(temperature_entity)
@@ -79,6 +89,14 @@ class HomeAssistantApiClient:
                 "humidity": _float_or_none(state.get("state")),
                 "humidity_unit": attrs.get("unit_of_measurement") or "%",
                 "humidity_name": attrs.get("friendly_name"),
+            })
+        if co2_entity:
+            state = self.read_state(co2_entity)
+            attrs = state.get("attributes", {})
+            snapshot.update({
+                "co2_ppm": _float_or_none(state.get("state")),
+                "co2_unit": attrs.get("unit_of_measurement") or "ppm",
+                "co2_name": attrs.get("friendly_name"),
             })
         return snapshot
 
@@ -113,6 +131,82 @@ class HomeAssistantApiClient:
                 "cloud_cover_name": attrs.get("friendly_name"),
             })
         return snapshot
+
+    def ac_telemetry_snapshot(self) -> dict[str, Any] | None:
+        entities = {
+            "power": self.config.ac_power_entity.strip(),
+            "running": self.config.ac_running_entity.strip(),
+            "frequency": self.config.ac_frequency_entity.strip(),
+            "return_air_temperature": self.config.ac_return_air_temp_entity.strip(),
+            "supply_air_temperature": self.config.ac_supply_air_temp_entity.strip(),
+        }
+        if not any(entities.values()):
+            return None
+
+        snapshot: dict[str, Any] = {
+            "configured": True,
+            "entities": {key: value for key, value in entities.items() if value},
+            "evidence": [],
+        }
+        if entities["power"]:
+            state = self.read_state(entities["power"])
+            attrs = state.get("attributes", {})
+            power = _power_to_w(_float_or_none(state.get("state")), attrs.get("unit_of_measurement"))
+            snapshot.update({
+                "power_w": power,
+                "power_unit": "W" if power is not None else attrs.get("unit_of_measurement"),
+                "power_name": attrs.get("friendly_name"),
+            })
+            if power is not None:
+                snapshot["evidence"].append("electrical_power")
+        if entities["running"]:
+            state = self.read_state(entities["running"])
+            attrs = state.get("attributes", {})
+            running = _running_state(state.get("state"))
+            snapshot.update({
+                "running": running,
+                "running_state": state.get("state"),
+                "running_name": attrs.get("friendly_name"),
+            })
+            if running is not None:
+                snapshot["evidence"].append("running_state")
+        if entities["frequency"]:
+            state = self.read_state(entities["frequency"])
+            attrs = state.get("attributes", {})
+            frequency = _float_or_none(state.get("state"))
+            snapshot.update({
+                "frequency_hz": frequency,
+                "frequency_unit": attrs.get("unit_of_measurement") or "Hz",
+                "frequency_name": attrs.get("friendly_name"),
+            })
+            if frequency is not None:
+                snapshot["evidence"].append("compressor_frequency")
+        return_air = self._temperature_entity_value(entities["return_air_temperature"])
+        supply_air = self._temperature_entity_value(entities["supply_air_temperature"])
+        if return_air is not None:
+            snapshot["return_air_temperature_c"] = return_air["temperature_c"]
+            snapshot["return_air_name"] = return_air.get("name")
+            snapshot["evidence"].append("return_air_temperature")
+        if supply_air is not None:
+            snapshot["supply_air_temperature_c"] = supply_air["temperature_c"]
+            snapshot["supply_air_name"] = supply_air.get("name")
+            snapshot["evidence"].append("supply_air_temperature")
+        if return_air is not None and supply_air is not None:
+            snapshot["supply_return_delta_c"] = round(supply_air["temperature_c"] - return_air["temperature_c"], 2)
+        return snapshot
+
+    def _temperature_entity_value(self, entity_id: str) -> dict[str, Any] | None:
+        if not entity_id:
+            return None
+        state = self.read_state(entity_id)
+        attrs = state.get("attributes", {})
+        value = _float_or_none(state.get("state"))
+        if value is None:
+            return None
+        return {
+            "temperature_c": _temperature_to_c(value, attrs.get("unit_of_measurement") or "C"),
+            "name": attrs.get("friendly_name"),
+        }
 
     def sun_snapshot(self) -> dict[str, Any] | None:
         sun = self.read_state("sun.sun")
@@ -223,6 +317,33 @@ def _float_or_none(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _power_to_w(value: float | None, unit: Any) -> float | None:
+    if value is None:
+        return None
+    unit_name = str(unit or "W").lower()
+    if unit_name == "kw":
+        return round(value * 1000.0, 3)
+    return value
+
+
+def _temperature_to_c(value: float, unit: Any) -> float:
+    unit_name = str(unit or "C").upper()
+    if "F" in unit_name:
+        return (value - 32.0) * 5.0 / 9.0
+    return value
+
+
+def _running_state(value: Any) -> bool | None:
+    text = str(value or "").strip().lower()
+    if not text or text in {"unknown", "unavailable", "none"}:
+        return None
+    if text in {"on", "run", "running", "heat", "heating", "cool", "cooling", "active", "1", "true"}:
+        return True
+    if text in {"off", "stop", "stopped", "idle", "standby", "0", "false"}:
+        return False
+    return None
 
 
 def _now_forecast_entry(current_weather: dict[str, Any] | None) -> dict[str, Any] | None:

@@ -7,12 +7,36 @@ class ServiceUiTests(unittest.TestCase):
     def test_adaptive_ui_exposes_control_strategy(self) -> None:
         for fragment in (
             'id="adaptive-control-strategy"',
-            '<option value="weather_setpoint">Weather Setpoint</option>',
-            '<option value="mpc_setpoint">MPC Setpoint</option>',
-            '<option value="hybrid_damper_mpc">Hybrid Damper MPC</option>',
+            '<option value="weather">Environment</option>',
+            '<option value="zone">Zone</option>',
+            '<option value="hybrid">Hybrid</option>',
             'control_strategy: $("adaptive-control-strategy").value',
-            'setValue("adaptive-control-strategy", current.control_strategy || "weather_setpoint")',
+            'setValue("adaptive-control-strategy", current.control_strategy || "weather")',
             'metric("Strategy", strategyText)',
+            'function strategyLabel(value)',
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, INDEX_HTML)
+
+    def test_adaptive_ui_exposes_air_quality_thresholds(self) -> None:
+        for fragment in (
+            'id="adaptive-dry-humidity-threshold"',
+            'id="adaptive-co2-ventilation-threshold"',
+            'setValue("adaptive-dry-humidity-threshold", current.dry_humidity_threshold ?? 70)',
+            'setValue("adaptive-co2-ventilation-threshold", current.co2_ventilation_threshold_ppm ?? 1000)',
+            'dry_humidity_threshold: Number($("adaptive-dry-humidity-threshold").value)',
+            'co2_ventilation_threshold_ppm: Number($("adaptive-co2-ventilation-threshold").value)',
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, INDEX_HTML)
+
+    def test_adaptive_ui_exposes_outside_air_zone_picker(self) -> None:
+        for fragment in (
+            "Outside Air Zones",
+            'id="adaptive-outside-air-zones"',
+            "data-adaptive-outside-air-zone",
+            "outside_air_zones: Array.from(document.querySelectorAll(\"[data-adaptive-outside-air-zone]\"))",
+            'metric("Outside Air Zones", `${outsideAirZones.size} Selected`)',
         ):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, INDEX_HTML)

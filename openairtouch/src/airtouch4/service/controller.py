@@ -76,6 +76,8 @@ class RuntimeController:
         self._indoor_error: str | None = None
         self._solar: dict[str, Any] | None = None
         self._solar_error: str | None = None
+        self._ac_telemetry: dict[str, Any] | None = None
+        self._ac_telemetry_error: str | None = None
         self._sun: dict[str, Any] | None = None
         self._sun_error: str | None = None
         self._next_weather_poll = 0.0
@@ -131,6 +133,7 @@ class RuntimeController:
                     "indoor": {
                         "temperature_entity_id": self.config.weather.indoor_temperature_entity,
                         "humidity_entity_id": self.config.weather.indoor_humidity_entity,
+                        "co2_entity_id": self.config.weather.indoor_co2_entity,
                         "state": self._indoor,
                         "error": self._indoor_error,
                     },
@@ -144,6 +147,15 @@ class RuntimeController:
                         "cloud_cover_entity_id": self.config.weather.cloud_cover_entity,
                         "state": self._solar,
                         "error": self._solar_error,
+                    },
+                    "ac_telemetry": {
+                        "power_entity_id": self.config.weather.ac_power_entity,
+                        "running_entity_id": self.config.weather.ac_running_entity,
+                        "frequency_entity_id": self.config.weather.ac_frequency_entity,
+                        "return_air_temp_entity_id": self.config.weather.ac_return_air_temp_entity,
+                        "supply_air_temp_entity_id": self.config.weather.ac_supply_air_temp_entity,
+                        "state": self._ac_telemetry,
+                        "error": self._ac_telemetry_error,
                     },
                     "sun": {
                         "state": self._sun,
@@ -162,6 +174,7 @@ class RuntimeController:
             "ok": snap["controller"]["status"] == "running" and snap["controller"]["error"] is None,
             "status": snap["controller"]["status"],
             "error": snap["controller"]["error"],
+            "connected": runtime_meta.get("connected", False),
             "address_assigned": runtime_meta.get("address_assigned", False),
             "boot_complete": runtime_meta.get("boot_complete", False),
             "protocol_mode": runtime_meta.get("protocol_mode"),
@@ -202,8 +215,14 @@ class RuntimeController:
             "forecast_weather_entity": self.config.weather.forecast_weather_entity,
             "indoor_temperature_entity": self.config.weather.indoor_temperature_entity,
             "indoor_humidity_entity": self.config.weather.indoor_humidity_entity,
+            "indoor_co2_entity": self.config.weather.indoor_co2_entity,
             "solar_irradiance_entity": self.config.weather.solar_irradiance_entity,
             "cloud_cover_entity": self.config.weather.cloud_cover_entity,
+            "ac_power_entity": self.config.weather.ac_power_entity,
+            "ac_running_entity": self.config.weather.ac_running_entity,
+            "ac_frequency_entity": self.config.weather.ac_frequency_entity,
+            "ac_return_air_temp_entity": self.config.weather.ac_return_air_temp_entity,
+            "ac_supply_air_temp_entity": self.config.weather.ac_supply_air_temp_entity,
             "weather_poll_interval": self.config.weather_poll_interval,
             "remote_error_resolution": self.config.error_resolver.enabled,
             "remote_error_cache": (
@@ -303,13 +322,15 @@ class RuntimeController:
         indoor_configured = (
             bool(self.config.weather.indoor_temperature_entity.strip())
             or bool(self.config.weather.indoor_humidity_entity.strip())
+            or bool(self.config.weather.indoor_co2_entity.strip())
         )
         solar_configured = (
             bool(self.config.weather.solar_irradiance_entity.strip())
             or bool(self.config.weather.cloud_cover_entity.strip())
         )
+        telemetry_configured = _telemetry_configured(self.config.weather)
         sun_needed = bool(weather_entity) or solar_configured
-        if not weather_entity and not forecast_entity and not indoor_configured and not solar_configured:
+        if not weather_entity and not forecast_entity and not indoor_configured and not solar_configured and not telemetry_configured:
             return
         now = time.monotonic()
         if now < self._next_weather_poll:
@@ -380,6 +401,22 @@ class RuntimeController:
                 self._solar = None
                 self._solar_error = None
                 self._mark_changed_locked()
+        if telemetry_configured:
+            try:
+                telemetry = self._ha_client.ac_telemetry_snapshot()
+                with self._lock:
+                    self._ac_telemetry = telemetry
+                    self._ac_telemetry_error = None
+                    self._mark_changed_locked()
+            except Exception as exc:  # pragma: no cover - live HA API path
+                with self._lock:
+                    self._ac_telemetry_error = f"{type(exc).__name__}: {exc}"
+                    self._mark_changed_locked()
+        else:
+            with self._lock:
+                self._ac_telemetry = None
+                self._ac_telemetry_error = None
+                self._mark_changed_locked()
         if sun_needed:
             try:
                 sun = self._ha_client.sun_snapshot()
@@ -404,10 +441,14 @@ class RuntimeController:
             "indoor": {"state": self._indoor, "error": self._indoor_error},
             "forecast": {"state": self._forecast, "error": self._forecast_error},
             "solar": {"state": self._solar, "error": self._solar_error},
+            "ac_telemetry": {"state": self._ac_telemetry, "error": self._ac_telemetry_error},
             "sun": {"state": self._sun, "error": self._sun_error},
         }
         specs = self._adaptive.evaluate(runtime_snapshot, integrations)
-        self._save_adaptive_learning_periodically()
+        if specs:
+            self._save_adaptive_learning_now()
+        else:
+            self._save_adaptive_learning_periodically()
         if specs:
             runtime.enqueue(specs)
             with self._lock:
@@ -427,6 +468,12 @@ class RuntimeController:
         if now < self._next_adaptive_learning_save:
             return
         self._next_adaptive_learning_save = now + 60.0
+        self._save_adaptive_learning_now()
+
+    def _save_adaptive_learning_now(self) -> None:
+        if self._adaptive_learning_path is None:
+            return
+        self._next_adaptive_learning_save = time.monotonic() + 60.0
         _save_adaptive_learning(self._adaptive_learning_path, self._adaptive.export_learning())
 
     def _sleep_before_reconnect(self) -> None:
@@ -476,6 +523,19 @@ def _weather_data_quality_error(weather: dict[str, Any] | None, entity_id: str) 
     if _float_or_none(weather.get("temperature")) is None:
         return f"{entity_id} has no numeric temperature"
     return None
+
+
+def _telemetry_configured(config: HomeAssistantApiConfig) -> bool:
+    return any(
+        entity.strip()
+        for entity in (
+            config.ac_power_entity,
+            config.ac_running_entity,
+            config.ac_frequency_entity,
+            config.ac_return_air_temp_entity,
+            config.ac_supply_air_temp_entity,
+        )
+    )
 
 
 def _float_or_none(value: Any) -> float | None:

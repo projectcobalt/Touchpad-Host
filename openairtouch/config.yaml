@@ -1,5 +1,5 @@
 name: OpenAirTouch
-version: "0.4.0"
+version: "0.5.0"
 slug: openairtouch
 description: Python host for the AirTouch internal RS485 touchpad protocol.
 arch:
@@ -46,8 +46,14 @@ options:
   forecast_weather_entity: ""
   indoor_temperature_entity: ""
   indoor_humidity_entity: ""
+  indoor_co2_entity: ""
   solar_irradiance_entity: ""
   cloud_cover_entity: ""
+  ac_power_entity: ""
+  ac_running_entity: ""
+  ac_frequency_entity: ""
+  ac_return_air_temp_entity: ""
+  ac_supply_air_temp_entity: ""
   weather_poll_interval: 60.0
   remote_error_resolution: false
   remote_error_cache_days: 2.0
@@ -75,8 +81,14 @@ schema:
   forecast_weather_entity: str
   indoor_temperature_entity: str
   indoor_humidity_entity: str
+  indoor_co2_entity: str
   solar_irradiance_entity: str
   cloud_cover_entity: str
+  ac_power_entity: str
+  ac_running_entity: str
+  ac_frequency_entity: str
+  ac_return_air_temp_entity: str
+  ac_supply_air_temp_entity: str
   weather_poll_interval: float
   remote_error_resolution: bool
   remote_error_cache_days: float

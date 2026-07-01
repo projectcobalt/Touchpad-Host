@@ -167,9 +167,16 @@ class AirTouchRuntime:
 
     def snapshot(self) -> dict:
         transactions = None if self.transactions is None else self.transactions.summary()
+        connected = (
+            self.config.active
+            and self.boot_complete
+            and self.address_assigned
+            and not self.protocol_mismatch
+        )
         return {
             "runtime": {
                 "active": self.config.active,
+                "connected": connected,
                 "protocol_mode": self.config.protocol,
                 "protocol": self._profile.name,
                 "protocol_name": self._profile.display_name,

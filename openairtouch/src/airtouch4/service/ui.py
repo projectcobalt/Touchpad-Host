@@ -1346,7 +1346,6 @@ INDEX_HTML = """<!doctype html>
                 <select id="adaptive-mode">
                   <option value="off">Off</option>
                   <option value="recommend">Recommend</option>
-                  <option value="auto_off">Auto Off</option>
                   <option value="adaptive">Adaptive</option>
                 </select>
               </div>
@@ -1359,18 +1358,25 @@ INDEX_HTML = """<!doctype html>
               <div class="field">
                 <label>Control Strategy</label>
                 <select id="adaptive-control-strategy">
-                  <option value="weather_setpoint">Weather Setpoint</option>
-                  <option value="mpc_setpoint">MPC Setpoint</option>
-                  <option value="hybrid_damper_mpc">Hybrid Damper MPC</option>
+                  <option value="weather">Environment</option>
+                  <option value="zone">Zone</option>
+                  <option value="hybrid">Hybrid</option>
                 </select>
               </div>
+              <div class="field"><label>Dry Humidity Threshold</label><input id="adaptive-dry-humidity-threshold" type="number" min="30" max="100" step="1"></div>
+              <div class="field"><label>CO2 Ventilation Threshold</label><input id="adaptive-co2-ventilation-threshold" type="number" min="400" max="5000" step="50"></div>
               <div class="field"><label>MPC Horizon</label><input id="adaptive-mpc-horizon-hours" type="number" min="1" max="24" step="1"></div>
+              <div class="field"><label>MPC Comfort Weight</label><input id="adaptive-mpc-comfort-weight" type="number" min="0" max="100" step="5"></div>
               <div class="field"><label>Minimum Run Time</label><input id="adaptive-compressor-min-run-time" type="number" min="0" step="60"></div>
               <div class="field"><label>Minimum Off Time</label><input id="adaptive-compressor-min-off-time" type="number" min="0" step="60"></div>
             </div>
             <div class="field">
               <label>Control Zones</label>
               <div class="chip-grid" id="adaptive-control-zones"></div>
+            </div>
+            <div class="field">
+              <label>Outside Air Zones</label>
+              <div class="chip-grid" id="adaptive-outside-air-zones"></div>
             </div>
             <div class="service-actions">
               <button type="button" data-adaptive-save="true">Save Adaptive</button>
@@ -1552,6 +1558,10 @@ INDEX_HTML = """<!doctype html>
       return raw
         .replace(/\b([a-z])/g, (match) => match.toUpperCase())
         .replace(/\b(Ac|Led|Tcp|Ui|Rx|Tx|Ok)\b/g, (match) => match.toUpperCase());
+    }
+
+    function strategyLabel(value) {
+      return value === "weather" ? "Environment" : titleText(value);
     }
 
     function row(cells) {
@@ -1860,8 +1870,16 @@ INDEX_HTML = """<!doctype html>
       if (adaptive && Array.isArray(adaptive.errors)) {
         adaptive.errors.forEach((error) => alerts.push(`Adaptive: ${describeControllerError(error)}`));
       }
-      if (adaptive && adaptive.mode === "recommend" && Array.isArray(adaptive.recommendations)) {
-        adaptive.recommendations.forEach((message) => alerts.push(`Adaptive: ${message}`));
+      if (adaptive && adaptive.mode === "recommend") {
+        const intents = Array.isArray(adaptive.intents) ? adaptive.intents : [];
+        if (intents.length) {
+          intents.forEach((intent) => {
+            const message = [intent && intent.name, intent && intent.headline, intent && intent.summary].filter(Boolean).join(": ");
+            if (message) alerts.push(`Adaptive: ${message}`);
+          });
+        } else if (Array.isArray(adaptive.recommendations)) {
+          adaptive.recommendations.forEach((message) => alerts.push(`Adaptive: ${message}`));
+        }
       }
       const failedTransactions = transactions && Array.isArray(transactions.failed) ? transactions.failed.length : 0;
       if (failedTransactions > 0) alerts.push(`Bus transactions failed: ${failedTransactions}`);
@@ -1998,11 +2016,15 @@ INDEX_HTML = """<!doctype html>
       setValue("adaptive-heat-comfort-temp", current.heat_comfort_temp ?? 20);
       setValue("adaptive-check-interval", current.check_interval ?? 60);
       setValue("adaptive-command-cooldown", current.command_cooldown ?? 300);
-      setValue("adaptive-control-strategy", current.control_strategy || "weather_setpoint");
+      setValue("adaptive-control-strategy", current.control_strategy || "weather");
+      setValue("adaptive-dry-humidity-threshold", current.dry_humidity_threshold ?? 70);
+      setValue("adaptive-co2-ventilation-threshold", current.co2_ventilation_threshold_ppm ?? 1000);
       setValue("adaptive-mpc-horizon-hours", current.mpc_horizon_hours ?? 6);
+      setValue("adaptive-mpc-comfort-weight", current.mpc_comfort_weight ?? 70);
       setValue("adaptive-compressor-min-run-time", current.compressor_min_run_time ?? 0);
       setValue("adaptive-compressor-min-off-time", current.compressor_min_off_time ?? 0);
       const controlZones = new Set((current.control_zones || []).map((zone) => Number(zone)));
+      const outsideAirZones = new Set((current.outside_air_zones || []).map((zone) => Number(zone)));
       const controlZoneContainer = $("adaptive-control-zones");
       if (controlZoneContainer && !controlZoneContainer.contains(document.activeElement)) {
         const entries = configuredGroupEntries(latestState || {});
@@ -2020,9 +2042,26 @@ INDEX_HTML = """<!doctype html>
           </label>`;
         }).join("") || '<span class="muted">No Zones</span>';
       }
+      const outsideAirZoneContainer = $("adaptive-outside-air-zones");
+      if (outsideAirZoneContainer && !outsideAirZoneContainer.contains(document.activeElement)) {
+        const entries = configuredGroupEntries(latestState || {});
+        outsideAirZoneContainer.innerHTML = entries.map(([id, group]) => {
+          const zone = Number(id);
+          const status = group.status || {};
+          const damper = pct(status.percentage);
+          const stateText = status.power_name ? titleText(status.power_name) : "Zone";
+          const detail = damper === null ? stateText : `${stateText} / ${damper}%`;
+          return `<label class="check-row compact">
+            <input type="checkbox" data-adaptive-outside-air-zone="${escapeHtml(zone)}" ${outsideAirZones.has(zone) ? "checked" : ""}>
+            <span>${escapeHtml(group.name || `Zone ${zone + 1}`)}</span>
+            <span class="pill">${escapeHtml(detail)}</span>
+          </label>`;
+        }).join("") || '<span class="muted">No Zones</span>';
+      }
       const outside = adaptive.outside_temperature === undefined || adaptive.outside_temperature === null
         ? "-"
         : formatTemp(adaptive.outside_temperature, 1);
+      const intents = Array.isArray(adaptive.intents) ? adaptive.intents : [];
       const recommendations = Array.isArray(adaptive.recommendations) ? adaptive.recommendations : [];
       const actions = Array.isArray(adaptive.actions) ? adaptive.actions : [];
       const errors = Array.isArray(adaptive.errors) ? adaptive.errors : [];
@@ -2048,6 +2087,14 @@ INDEX_HTML = """<!doctype html>
       const evaluations = Array.isArray(adaptive.evaluations) ? adaptive.evaluations : [];
       const mpcEvaluation = evaluations.slice().reverse().find((item) => item && item.mpc);
       const mpc = mpcEvaluation ? mpcEvaluation.mpc : null;
+      const hybridEvaluation = evaluations.slice().reverse().find((item) => item && item.hybrid);
+      const hybrid = hybridEvaluation ? hybridEvaluation.hybrid : null;
+      const hybridSensor = hybrid && hybrid.touchpad_sensor === 145 ? "Touchpad 2" : hybrid && hybrid.touchpad_sensor !== undefined ? `Sensor ${hybrid.touchpad_sensor}` : "-";
+      const hybridTemp = hybrid && hybrid.touchpad_temperature !== undefined && hybrid.touchpad_temperature !== null
+        ? formatTemp(hybrid.touchpad_temperature)
+        : hybrid && hybrid.control_temperature !== undefined && hybrid.control_temperature !== null
+          ? formatTemp(hybrid.control_temperature, 1)
+          : "-";
       const plans = learning.plans || {};
       const latestPlanEntry = Object.entries(plans).slice(-1)[0];
       const latestPlan = latestPlanEntry ? latestPlanEntry[1] : null;
@@ -2062,7 +2109,12 @@ INDEX_HTML = """<!doctype html>
         : latestPlanEntry
           ? `AC ${Number(latestPlanEntry[0]) + 1}: ${latestPlan.action || latestPlan.source || "mpc"} ${latestPlan.target ?? "-"} (${Math.round(Number(latestPlan.confidence || 0) * 100)}%)${planRunText(latestPlan)}`
           : "None";
-      const strategyText = titleText(current.control_strategy || "weather_setpoint");
+      const latestIntent = intents.slice().reverse().find((intent) => intent && intent.headline) || null;
+      const intentText = intents.length
+        ? intents.map((intent) => [intent.name, intent.headline, intent.summary].filter(Boolean).join(": ")).join(" / ")
+        : "None";
+      const intentCommands = intents.flatMap((intent) => Array.isArray(intent.commands) ? intent.commands : []);
+      const strategyText = strategyLabel(current.control_strategy || "weather");
       const compressor = learning.compressor || {};
       const compressorItems = Object.entries(compressor).map(([ac, state]) => {
         const seconds = state && state.seconds_since_change !== null && state.seconds_since_change !== undefined
@@ -2074,16 +2126,21 @@ INDEX_HTML = """<!doctype html>
         metric("Control Mode", titleText(adaptive.mode || current.mode || "off")),
         metric("Strategy", strategyText),
         metric("Control Zones", `${controlZones.size} Enabled`),
+        metric("Outside Air Zones", `${outsideAirZones.size} Selected`),
         metric("Learning Models", `${Object.keys(learningZones).length} Models / ${learningCount} Learning / ${readyCount} Ready`),
         metric("Samples", `${passiveSamples} Passive / ${activeSamples} Active`),
         metric("Confidence", `${confidence} / Std ${predictionStd}`),
-        metric("Latest Plan", mpcText),
+        metric("Intent", latestIntent ? latestIntent.headline : "None"),
+        metric("Latest Plan", latestIntent ? latestIntent.summary : mpcText),
+        metric("Hybrid Sensor", hybridSensor),
+        metric("Hybrid Temp", hybridTemp),
         metric("Compressor Guard", compressorItems.join(", ") || "-"),
         metric("Outside", outside),
         metric("Active AC", (adaptive.active_ac || []).join(", ") || "-"),
         metric("Active Zones", (adaptive.active_groups || []).map((item) => Number(item) + 1).join(", ") || "-"),
-        infoCard("Recommendations", recommendations.join(" / ") || "None"),
-        infoCard("Actions", actions.join(" / ") || "None"),
+        infoCard("Recommendations", intentText),
+        infoCard("Commands", intentCommands.join(" / ") || actions.join(" / ") || "None"),
+        (recommendations.length || actions.length) ? infoCard("Diagnostics", [...recommendations, ...actions].join(" / ")) : "",
         errors.length ? infoCard("Errors", errors.join(" / ")) : "",
       ].filter(Boolean).join("");
       const analyticsContainer = $("adaptive-analytics-cards");
@@ -2610,6 +2667,7 @@ INDEX_HTML = """<!doctype html>
       const badges = [];
       if (isSpill) badges.push('<span class="pill warn">Spill</span>');
       if (sensorControl) badges.push('<span class="pill cool">Sensor</span>');
+      if (!sensorControl) badges.push('<span class="pill warn">Damper</span>');
       if (status.low_battery) badges.push('<span class="pill warn">Battery</span>');
       if (status.timer_on) badges.push('<span class="pill">Program</span>');
       if (power === "turbo") badges.push('<span class="pill">Turbo</span>');
@@ -3546,10 +3604,16 @@ INDEX_HTML = """<!doctype html>
           check_interval: Number($("adaptive-check-interval").value),
           command_cooldown: Number($("adaptive-command-cooldown").value),
           control_strategy: $("adaptive-control-strategy").value,
+          dry_humidity_threshold: Number($("adaptive-dry-humidity-threshold").value),
+          co2_ventilation_threshold_ppm: Number($("adaptive-co2-ventilation-threshold").value),
           control_zones: Array.from(document.querySelectorAll("[data-adaptive-control-zone]"))
             .filter((input) => input.checked)
             .map((input) => Number(input.dataset.adaptiveControlZone)),
+          outside_air_zones: Array.from(document.querySelectorAll("[data-adaptive-outside-air-zone]"))
+            .filter((input) => input.checked)
+            .map((input) => Number(input.dataset.adaptiveOutsideAirZone)),
           mpc_horizon_hours: Number($("adaptive-mpc-horizon-hours").value),
+          mpc_comfort_weight: Number($("adaptive-mpc-comfort-weight").value),
           compressor_min_run_time: Number($("adaptive-compressor-min-run-time").value),
           compressor_min_off_time: Number($("adaptive-compressor-min-off-time").value),
         });

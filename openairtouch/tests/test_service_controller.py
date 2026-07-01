@@ -116,6 +116,7 @@ class RuntimeControllerTests(unittest.TestCase):
         controller.stop()
 
         self.assertEqual(health["status"], "running")
+        self.assertTrue(health["connected"])
         self.assertTrue(health["address_assigned"])
         self.assertEqual(health["protocol_mode"], "auto")
         self.assertEqual(health["protocol"], "at4")
@@ -170,7 +171,7 @@ class RuntimeControllerTests(unittest.TestCase):
 
             updated = first.update_adaptive_config({
                 "mode": "adaptive",
-                "learning_mode": "control",
+                "control_strategy": "zone",
                 "mpc_horizon_hours": 8,
                 "compressor_min_run_time": 600,
                 "compressor_min_off_time": 300,
@@ -187,7 +188,9 @@ class RuntimeControllerTests(unittest.TestCase):
             persisted = json.loads(Path(path).read_text(encoding="utf-8"))
             self.assertGreater(first.wait_for_change(version, timeout=0.01), version)
             self.assertEqual(updated["learning_mode"], "control")
+            self.assertEqual(updated["control_strategy"], "zone")
             self.assertEqual(persisted["mpc_horizon_hours"], 8)
+            self.assertEqual(persisted["control_strategy"], "zone")
             self.assertEqual(persisted["compressor_groups"], [[0, 1], [2, 3]])
             self.assertNotIn("weather_entity", persisted)
             self.assertEqual(second.public_config()["adaptive"]["mode"], "adaptive")

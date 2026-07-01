@@ -23,7 +23,7 @@ def create_app(controller: RuntimeController):
     if FastAPI is None:  # pragma: no cover - import guard
         raise RuntimeError("FastAPI is required for the service API. Install dependencies from requirements.txt")
 
-    app = FastAPI(title="OpenAirTouch", version="0.4.0")
+    app = FastAPI(title="OpenAirTouch", version="0.5.0")
 
     @app.on_event("startup")
     def _startup() -> None:

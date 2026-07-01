@@ -22,6 +22,8 @@ NORMAL_MIN_PASSIVE_SAMPLES = 60
 NORMAL_MIN_ACTIVE_SAMPLES = 20
 NORMAL_MIN_EKF_UPDATES = 3
 LEARNING_OBSERVATION_INTERVAL_SECONDS = 3 * 60
+TELEMETRY_UNKNOWN_CONFIDENCE_FACTOR = 0.5
+TELEMETRY_DISAGREE_CONFIDENCE_FACTOR = 0.45
 
 
 @dataclass(frozen=True)
@@ -59,7 +61,10 @@ class MpcInputs:
     outside_forecast: tuple[float, ...] = ()
     outside_forecast_step_minutes: float = 60.0
     humidity: float | None = None
+    humidity_assist_threshold: float = 60.0
     q_solar: float = 0.0
+    target_policy: str = "global_setpoint"
+    comfort_weight: int = 70
     input_quality: dict[str, Any] = field(default_factory=dict)
 
 
@@ -738,6 +743,7 @@ class AdaptiveMpcEngine:
                     q_solar=q_solar,
                     q_occupancy=q_occupancy,
                     learn=room.learn,
+                    power_fraction=room.power_fraction,
                 )
                 self._record(
                     room.id,
@@ -787,6 +793,7 @@ class AdaptiveMpcEngine:
             fallback_outdoor,
             step_minutes=inputs.outside_forecast_step_minutes,
         )
+        room_setpoint_targets = inputs.target_policy == "room_setpoint"
         heat_targets = [baseline_target] * blocks
         cool_targets = [baseline_target] * blocks
         predictions: list[list[float]] = []
@@ -799,16 +806,21 @@ class AdaptiveMpcEngine:
         self.forecasts = {room.id: [] for room, _model, _temperature in controlled}
         optimizer_started = time.perf_counter()
         for room, model, temperature in controlled:
+            room_target = _room_mpc_target(room, baseline_target, cooling, room_setpoint_targets)
+            room_heat_targets = [room_target] * blocks
+            room_cool_targets = [room_target] * blocks
             plan = _optimize_plan(
                 model.ekf.model,
                 temperature,
                 outdoor,
-                heat_targets,
-                cool_targets,
+                room_heat_targets,
+                room_cool_targets,
                 can_heat=not cooling,
                 can_cool=cooling,
                 humidity=inputs.humidity,
+                humidity_assist_threshold=inputs.humidity_assist_threshold,
                 q_solar=inputs.q_solar,
+                comfort_weight=inputs.comfort_weight,
             )
             predictions.append(plan.temperatures[1:])
             actions.append(plan.current_action)
@@ -857,11 +869,12 @@ class AdaptiveMpcEngine:
                 worst_by_block.append(max(values) if cooling else min(values))
         if not worst_by_block:
             return None
-        target = baseline_target
-        if cooling and max(worst_by_block) <= baseline_target:
-            target = baseline_target + 1
-        elif not cooling and min(worst_by_block) >= baseline_target:
-            target = baseline_target - 1
+        target = _aggregate_room_target(controlled, baseline_target, cooling, room_setpoint_targets)
+        if not room_setpoint_targets:
+            if cooling and max(worst_by_block) <= baseline_target:
+                target = baseline_target + 1
+            elif not cooling and min(worst_by_block) >= baseline_target:
+                target = baseline_target - 1
         hourly = [round(worst_by_block[min((hour + 1) * int(60 / PLAN_DT_MINUTES) - 1, len(worst_by_block) - 1)], 2) for hour in range(inputs.horizon_hours)]
         _annotate_solve_diagnostics(
             runtime_forecast,
@@ -873,10 +886,10 @@ class AdaptiveMpcEngine:
         )
         proposal = MpcProposal(
             target=target,
-            source="mpc",
+            source="zone" if room_setpoint_targets else "mpc",
             confidence=confidence,
             predicted_temperatures=hourly,
-            reason="ekf_mpc_plan",
+            reason="room_setpoint_demand" if room_setpoint_targets else "ekf_mpc_plan",
             action=_dominant_action(actions),
             power_fraction=round(max(fractions) if fractions else 0.0, 3),
             zone_power_fractions=zone_fractions,
@@ -1140,6 +1153,14 @@ def _runtime_forecast(
             point["control_temperature"] = round(control_temperature, 2)
         series.append(point)
     runtime_minutes = round(len(active_blocks) * PLAN_DT_MINUTES, 1)
+    telemetry_quality = _telemetry_forecast_quality(inputs.input_quality.get("telemetry"), series)
+    quality = {
+        "status": "ok" if ready else "warming_up",
+        "model_ready": ready,
+        "confidence": confidence,
+        "input_quality": dict(inputs.input_quality),
+    }
+    quality.update(telemetry_quality)
     return RuntimeForecast(
         horizon_hours=inputs.horizon_hours,
         step_minutes=PLAN_DT_MINUTES,
@@ -1149,13 +1170,39 @@ def _runtime_forecast(
         zone_runtime_fraction=zone_runtime_fraction,
         action_windows=_runtime_windows(series),
         series=series,
-        quality={
-            "status": "ok" if ready else "warming_up",
-            "model_ready": ready,
-            "confidence": confidence,
-            "input_quality": dict(inputs.input_quality),
-        },
+        quality=quality,
     )
+
+
+def _telemetry_forecast_quality(telemetry: Any, series: list[dict[str, Any]]) -> dict[str, Any]:
+    if not isinstance(telemetry, dict) or not telemetry.get("available"):
+        return {
+            "forecast_confidence": None,
+            "telemetry_agreement": "unavailable",
+            "telemetry_evidence": [],
+        }
+    planned_action = (series[0].get("action") if series else MODE_IDLE) or MODE_IDLE
+    planned_conditioning = planned_action != MODE_IDLE
+    observed = telemetry.get("observed_conditioning")
+    base_confidence = _number(telemetry.get("confidence")) or 0.0
+    evidence = list(telemetry.get("evidence") or [])
+    if observed is None:
+        return {
+            "forecast_confidence": round(base_confidence * TELEMETRY_UNKNOWN_CONFIDENCE_FACTOR, 3),
+            "telemetry_agreement": "unknown",
+            "telemetry_evidence": evidence,
+        }
+    agreement = observed is planned_conditioning
+    return {
+        "forecast_confidence": round(
+            base_confidence if agreement else base_confidence * TELEMETRY_DISAGREE_CONFIDENCE_FACTOR,
+            3,
+        ),
+        "telemetry_agreement": "agree" if agreement else "disagree",
+        "telemetry_evidence": evidence,
+        "telemetry_observed_conditioning": observed,
+        "telemetry_planned_conditioning": planned_conditioning,
+    }
 
 
 def _runtime_windows(series: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1244,7 +1291,9 @@ def _optimize_plan(
     can_heat: bool,
     can_cool: bool,
     humidity: float | None = None,
+    humidity_assist_threshold: float = 60.0,
     q_solar: float = 0.0,
+    comfort_weight: int = 70,
 ) -> MpcPlan:
     actions: list[str] = []
     temps = [room_temp]
@@ -1273,10 +1322,20 @@ def _optimize_plan(
                     outdoor[index : index + 6],
                     heat_targets[index : index + 6],
                     cool_targets[index : index + 6],
+                    comfort_weight=comfort_weight,
                 ),
             )
         target = cool_target if action == MODE_COOLING else heat_target
-        fraction = _power_fraction(model, current, outdoor_temp, target, action, humidity=humidity)
+        fraction = _power_fraction(
+            model,
+            current,
+            outdoor_temp,
+            target,
+            action,
+            humidity=humidity,
+            humidity_assist_threshold=humidity_assist_threshold,
+            comfort_weight=comfort_weight,
+        )
         if action == MODE_IDLE:
             fraction = 0.0
         elif fraction == 0.0:
@@ -1293,7 +1352,17 @@ def _optimize_plan(
     return MpcPlan(actions=actions, temperatures=temps, power_fractions=fractions)
 
 
-def _action_cost(model: RCModel, action: str, room_temp: float, outdoor: list[float], heat_targets: list[float], cool_targets: list[float]) -> float:
+def _action_cost(
+    model: RCModel,
+    action: str,
+    room_temp: float,
+    outdoor: list[float],
+    heat_targets: list[float],
+    cool_targets: list[float],
+    *,
+    comfort_weight: int = 70,
+) -> float:
+    comfort_cost, energy_cost, _approach_rate = _mpc_tuning(comfort_weight)
     temp = room_temp
     total = 0.0
     for index, outdoor_temp in enumerate(outdoor or [room_temp]):
@@ -1303,26 +1372,69 @@ def _action_cost(model: RCModel, action: str, room_temp: float, outdoor: list[fl
         mode = action if index < 2 else MODE_IDLE
         temp = model.predict(temp, outdoor_temp, mode, PLAN_DT_MINUTES, power_fraction=fraction)
         if temp < heat_target:
-            total += 10.0 * (heat_target - temp) ** 2
+            total += comfort_cost * (heat_target - temp) ** 2
         elif temp > cool_target:
-            total += 10.0 * (temp - cool_target) ** 2
+            total += comfort_cost * (temp - cool_target) ** 2
         if mode != MODE_IDLE:
-            total += fraction
+            total += energy_cost * fraction
     return total
 
 
-def _power_fraction(model: RCModel, room_temp: float, outdoor_temp: float, target: float, action: str, *, humidity: float | None = None) -> float:
+def _power_fraction(
+    model: RCModel,
+    room_temp: float,
+    outdoor_temp: float,
+    target: float,
+    action: str,
+    *,
+    humidity: float | None = None,
+    humidity_assist_threshold: float = 60.0,
+    comfort_weight: int = 70,
+) -> float:
     if action == MODE_IDLE:
         return 0.0
+    _comfort_cost, energy_cost, approach_rate = _mpc_tuning(comfort_weight)
+    target = room_temp + approach_rate * (target - room_temp)
     full = model.predict(room_temp, outdoor_temp, action, PLAN_DT_MINUTES, power_fraction=1.0)
     idle = model.predict(room_temp, outdoor_temp, MODE_IDLE, PLAN_DT_MINUTES, power_fraction=0.0)
     span = full - idle
     if abs(span) < 0.01:
         return 1.0
     fraction = (target - idle) / span
-    if action == MODE_COOLING and humidity is not None and humidity >= 60:
+    if fraction > 0:
+        fraction = max(0.0, fraction - 0.02 * energy_cost)
+    if action == MODE_COOLING and humidity is not None and humidity >= humidity_assist_threshold:
         fraction = max(fraction, 0.35)
     return _clamp(fraction, 0.0, 1.0)
+
+
+def _room_mpc_target(room: AdaptiveRoom, baseline_target: int, cooling: bool, room_setpoint_targets: bool) -> float:
+    if room_setpoint_targets and room.setpoint is not None:
+        return float(room.setpoint)
+    return float(baseline_target)
+
+
+def _aggregate_room_target(
+    controlled: list[tuple[AdaptiveRoom, ZoneThermalModel, float]],
+    baseline_target: int,
+    cooling: bool,
+    room_setpoint_targets: bool,
+) -> int:
+    if not room_setpoint_targets:
+        return baseline_target
+    setpoints = [room.setpoint for room, _model, _temperature in controlled if room.setpoint is not None]
+    if not setpoints:
+        return baseline_target
+    target = min(setpoints) if cooling else max(setpoints)
+    return int(round(target))
+
+
+def _mpc_tuning(comfort_weight: int) -> tuple[float, float, float]:
+    weight = int(_clamp(float(comfort_weight), 0.0, 100.0))
+    comfort_cost = max(1.0, 10.0 * weight / 70.0)
+    energy_cost = max(1.0, (100.0 - weight) / 30.0)
+    approach_rate = min(1.0, 0.2 + 0.8 * (weight / 70.0))
+    return comfort_cost, energy_cost, approach_rate
 
 
 def _expand_hourly(values: list[float] | tuple[float, ...], blocks: int, fallback: float) -> list[float]:

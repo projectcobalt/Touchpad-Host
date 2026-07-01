@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0 - 2026-07-01
+
+- Feed adaptive room power-fraction estimates into the thermal prediction and EKF learning path instead of using full-power active observations for every zone.
+
 ## 0.4.0 - 2026-06-28
 
 - Fix Home Assistant forecast ingestion to treat naive forecast timestamps as HA-local time, preserve the HA timezone on forecast snapshots, and use the current outside temperature as a live interpolation anchor.

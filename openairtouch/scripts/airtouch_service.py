@@ -45,10 +45,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--forecast-weather-entity", default="")
     parser.add_argument("--indoor-temperature-entity", default="")
     parser.add_argument("--indoor-humidity-entity", default="")
+    parser.add_argument("--indoor-co2-entity", default="")
     parser.add_argument("--solar-irradiance-entity", default="")
     parser.add_argument("--cloud-cover-entity", default="")
+    parser.add_argument("--ac-power-entity", default="")
+    parser.add_argument("--ac-running-entity", default="")
+    parser.add_argument("--ac-frequency-entity", default="")
+    parser.add_argument("--ac-return-air-temp-entity", default="")
+    parser.add_argument("--ac-supply-air-temp-entity", default="")
     parser.add_argument("--weather-poll-interval", type=float, default=60.0)
-    parser.add_argument("--adaptive-mode", default="off", choices=("off", "recommend", "auto_off", "adaptive"))
+    parser.add_argument("--adaptive-mode", default="off", choices=("off", "recommend", "adaptive"))
     parser.add_argument("--adaptive-cool-diff", type=int, default=4)
     parser.add_argument("--adaptive-cool-comfort-temp", type=int, default=24)
     parser.add_argument("--adaptive-heat-diff", type=int, default=4)
@@ -121,8 +127,14 @@ def main(argv: list[str] | None = None) -> int:
                 forecast_weather_entity=args.forecast_weather_entity,
                 indoor_temperature_entity=args.indoor_temperature_entity,
                 indoor_humidity_entity=args.indoor_humidity_entity,
+                indoor_co2_entity=args.indoor_co2_entity,
                 solar_irradiance_entity=args.solar_irradiance_entity,
                 cloud_cover_entity=args.cloud_cover_entity,
+                ac_power_entity=args.ac_power_entity,
+                ac_running_entity=args.ac_running_entity,
+                ac_frequency_entity=args.ac_frequency_entity,
+                ac_return_air_temp_entity=args.ac_return_air_temp_entity,
+                ac_supply_air_temp_entity=args.ac_supply_air_temp_entity,
             ),
             weather_poll_interval=args.weather_poll_interval,
             adaptive=AdaptiveConfig(
