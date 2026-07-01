@@ -3096,9 +3096,9 @@ INDEX_HTML = """<!doctype html>
         .sort(([a], [b]) => Number(a) - Number(b))
         .map(([id, group]) => {
           const status = group.status || {};
-          const configured = group.spill_configured || status.spill_on;
+          const configured = !!group.spill_configured;
           const damper = pct(status.percentage);
-          const spillState = status.spill_on ? "Open" : "Reported";
+          const spillState = status.spill_on ? "Open" : (configured ? "Configured" : "Live");
           return `<label class="check-row compact">
             <input type="checkbox" data-spill-group="${escapeHtml(id)}" ${configured ? "checked" : ""}>
             <span>${escapeHtml(group.name || `Zone ${Number(id) + 1}`)}</span>

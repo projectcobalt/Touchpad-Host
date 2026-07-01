@@ -64,6 +64,11 @@ class ServiceUiTests(unittest.TestCase):
 
         self.assertNotIn("setInterval(() => refresh(), 1500);", INDEX_HTML)
 
+    def test_spill_config_checkbox_uses_saved_config_not_live_open_state(self) -> None:
+        self.assertIn("const configured = !!group.spill_configured;", INDEX_HTML)
+        self.assertIn('const spillState = status.spill_on ? "Open" : (configured ? "Configured" : "Live");', INDEX_HTML)
+        self.assertNotIn("const configured = group.spill_configured || status.spill_on;", INDEX_HTML)
+
 
 if __name__ == "__main__":
     unittest.main()

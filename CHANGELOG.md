@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.1 - 2026-07-02
+
+- Keep saved spill-zone configuration separate from live spill-open status in the service UI and clear stale spill configuration flags when new spill data arrives.
+
 ## 0.6.0 - 2026-07-01
 
 - Replace deprecated FastAPI startup/shutdown event hooks with an application lifespan handler.

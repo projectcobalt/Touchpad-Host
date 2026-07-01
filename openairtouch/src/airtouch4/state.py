@@ -75,6 +75,9 @@ class AirTouchState:
             self.system["balance"] = decoded
         elif kind == "spill":
             self.system["spill"] = decoded
+            for group in self.groups.values():
+                if "spill_configured" in group:
+                    group["spill_configured"] = False
             for group in decoded.get("spill_groups_zero_based", []):
                 self._merge(self.groups, group, {"spill_configured": True})
         elif kind == "sensor_list":

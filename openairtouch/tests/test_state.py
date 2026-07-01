@@ -6,6 +6,20 @@ from airtouch4.state import AirTouchState
 
 
 class AirTouchStateTests(unittest.TestCase):
+    def test_spill_config_replaces_previous_configured_groups(self) -> None:
+        state = AirTouchState()
+        state.groups = {
+            0: {"name": "Living", "spill_configured": True},
+            1: {"name": "Spill", "spill_configured": True},
+            2: {"name": "Bedroom"},
+        }
+
+        state.apply_decoded(0x69, {"type": "spill", "spill_groups_zero_based": [2]})
+
+        self.assertFalse(state.groups[0]["spill_configured"])
+        self.assertFalse(state.groups[1]["spill_configured"])
+        self.assertTrue(state.groups[2]["spill_configured"])
+
     def test_sensor_view_resolves_group_local_rf_sensor_slots(self) -> None:
         state = AirTouchState()
         state.system["group_count"] = 3
